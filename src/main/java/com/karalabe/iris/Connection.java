@@ -1,14 +1,15 @@
 package com.karalabe.iris;
 
-import org.jetbrains.annotations.NotNull;
-
 import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.io.IOException;
-import java.io.OutputStream;
 import java.net.InetAddress;
 import java.net.ProtocolException;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
+
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 /*
  * Message relay between the local app and the local iris node.
@@ -20,25 +21,25 @@ public class Connection implements AutoCloseable {
 
     private static final String VERSION = "v1.0";
 
-    private final Socket          socket;    // Network connection to the iris node
-    private final DataInputStream socketIn;  //
-    private final OutputStream    socketOut; //
+    private final Socket           socket;    // Network connection to the iris node
+    private final DataInputStream  socketIn;  //
+    private final DataOutputStream socketOut; //
 
-    public Connection(int port, String clusterName, ConnectionHandler handler) throws IOException, ProtocolException {
+    public Connection(int port, @NotNull String clusterName, @Nullable ConnectionHandler handler) throws IOException, ProtocolException {
         socket = new Socket(InetAddress.getLoopbackAddress(), port);
 
         socketIn = new DataInputStream(socket.getInputStream());
-        socketOut = socket.getOutputStream();
+        socketOut = new DataOutputStream(socket.getOutputStream());
 
         sendInit(clusterName);
         procInit();
     }
 
-    private void sendInit(final String app) throws IOException {
-        this.sendByte(OpCode.INIT.getOrdinal());
-        this.sendString(VERSION);
-        this.sendString(app);
-        this.sendFlush();
+    private void sendInit(@NotNull final String app) throws IOException {
+        sendByte(OpCode.INIT.getOrdinal());
+        sendString(VERSION);
+        sendString(app);
+        sendFlush();
     }
 
     private void procInit() throws IOException {
@@ -48,38 +49,38 @@ public class Connection implements AutoCloseable {
     }
 
     private void sendByte(final byte data) throws IOException {
-        socketOut.write(new byte[]{data});
+        socketOut.writeByte(data);
     }
 
-    private void sendString(final String data) throws IOException {
-        this.sendBinary(data.getBytes(StandardCharsets.UTF_8));
+    private void sendString(@NotNull final String data) throws IOException {
+        sendBinary(data.getBytes(StandardCharsets.UTF_8));
     }
 
     private void sendBoolean(final boolean data) throws IOException {
-        this.sendByte((byte) (data ? 1 : 0));
+        sendByte((byte) (data ? 1 : 0));
     }
 
-    private void sendBroadcast(final String app, final byte[] msg) throws IOException {
+    private void sendBroadcast(@NotNull final String app, @NotNull final byte[] msg) throws IOException {
         synchronized (socketOut) {
-            this.sendByte(OpCode.BROADCAST.getOrdinal());
-            this.sendString(app);
-            this.sendBinary(msg);
-            this.sendFlush();
+            sendByte(OpCode.BROADCAST.getOrdinal());
+            sendString(app);
+            sendBinary(msg);
+            sendFlush();
         }
     }
 
-    private void sendBinary(final byte[] data) throws IOException {
-        this.sendVarint(data.length);
+    private void sendBinary(@NotNull final byte[] data) throws IOException {
+        sendVarint(data.length);
         socketOut.write(data);
     }
 
     private void sendVarint(final long data) throws IOException {
         long toSend = data;
         while (toSend > VAR_INT_BYTE_MAX_VALUE) {
-            this.sendByte((byte) (VAR_INT_CONTINUATION_BIT | (toSend & VAR_INT_BYTE_MASK)));
+            sendByte((byte) (VAR_INT_CONTINUATION_BIT | (toSend & VAR_INT_BYTE_MASK)));
             toSend /= VAR_INT_CONTINUATION_BIT;
         }
-        this.sendByte((byte) toSend);
+        sendByte((byte) toSend);
     }
 
     private byte recvByte() throws IOException {
