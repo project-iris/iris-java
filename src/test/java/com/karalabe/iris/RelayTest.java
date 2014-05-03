@@ -21,7 +21,7 @@ public class RelayTest {
     }
 
     @Test public void handshakeIsWorking() throws Exception {
-        try (final Relay ignored = new Relay(IRIS_PORT, CLUSTER_NAME)) {
+        try (final Relay ignored = new Relay(IRIS_PORT, CLUSTER_NAME, null)) {
         }
         catch (IOException e) {
             Assert.fail(e.getMessage());
