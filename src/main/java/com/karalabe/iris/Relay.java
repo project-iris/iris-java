@@ -39,7 +39,7 @@ public class Relay implements AutoCloseable {
     }
 
     private void sendByte(final byte data) throws IOException {
-        socketOut.write(new byte[] { data });
+        socketOut.write(new byte[]{data});
     }
 
     private void sendBool(final boolean data) throws IOException {
@@ -87,5 +87,4 @@ public class Relay implements AutoCloseable {
             this.sendFlush();
         }
     }
-
 }
