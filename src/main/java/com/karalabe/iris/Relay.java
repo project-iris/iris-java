@@ -11,9 +11,12 @@ import java.net.Socket;
 * Message relay between the local app and the local iris node.
 **/
 public class Relay implements AutoCloseable {
-    private Socket       socket;    // Network connection to the iris node
-    private InputStream  socketIn;  //
-    private OutputStream socketOut; //
+    private final Socket       socket;    // Network connection to the iris node
+    private final InputStream  socketIn;  //
+    private final OutputStream socketOut; //
+
+    public static final int XXX  = 127; // FIXME rename and change to binary
+    public static final int XXX2 = 128; // FIXME rename
 
     public Relay(int port, String clusterName) throws IOException, ProtocolException {
         socket = new Socket(InetAddress.getLoopbackAddress(), port);
@@ -49,10 +52,10 @@ public class Relay implements AutoCloseable {
     
     private void sendVarint(long data) throws IOException {
     	long toSend = data;
-    	while (toSend > 127) {
-    		this.sendByte((byte)(128 + toSend % 128));
-    		toSend /= 128;
-    	}
+        while (toSend > XXX) {
+            this.sendByte((byte) (XXX2 + (toSend % XXX2)));
+            toSend /= XXX2;
+        }
     	this.sendByte((byte)toSend);
     }
 }

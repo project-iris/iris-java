@@ -1,4 +1,6 @@
 package com.karalabe.iris;
 
-public class Tunnel {
+public class Tunnel implements AutoCloseable {
+    @Override public void close() throws Exception {
+    }
 }
