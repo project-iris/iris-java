@@ -9,7 +9,7 @@ public abstract class ConnectionHandler {
     }
 
     /* Handles a request (msg), returning the reply that should be forwarded back to the caller. If the method crashes, nothing is returned and the caller will eventually time out.*/
-    public byte[] handleRequest(@NotNull byte[] request) {
+    @NotNull public byte[] handleRequest(@NotNull byte[] request) {
         throw new IllegalStateException("No request handler provided!");
     }
 
@@ -25,7 +25,7 @@ public abstract class ConnectionHandler {
     }
 
     /* Handles the unexpected termination of the relay connection.*/
-    public void handleDrop(Exception reason) {
+    public void handleDrop(@NotNull Exception reason) {
         throw new IllegalStateException("No drop handler provided!");
     }
 }
