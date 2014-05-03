@@ -43,25 +43,25 @@ public class Relay implements AutoCloseable {
     }
 
     private void sendBool(final boolean data) throws IOException {
-        this.sendByte((byte) (data ? 1 : 0));
+        sendByte((byte) (data ? 1 : 0));
     }
 
     private void sendVarint(final long data) throws IOException {
         long toSend = data;
         while (toSend > VAR_INT_BYTE_MAX_VALUE) {
-            this.sendByte((byte) (VAR_INT_CONTINUATION_BIT | (toSend & VAR_INT_BYTE_MASK)));
+            sendByte((byte) (VAR_INT_CONTINUATION_BIT | (toSend & VAR_INT_BYTE_MASK)));
             toSend /= VAR_INT_CONTINUATION_BIT;
         }
-        this.sendByte((byte) toSend);
+        sendByte((byte) toSend);
     }
 
     private void sendBinary(final byte[] data) throws IOException {
-        this.sendVarint(data.length);
+        sendVarint(data.length);
         socketOut.write(data);
     }
 
     private void sendString(final String data) throws IOException {
-        this.sendBinary(data.getBytes(StandardCharsets.UTF_8));
+        sendBinary(data.getBytes(StandardCharsets.UTF_8));
     }
 
     private void sendFlush() throws IOException {
@@ -69,10 +69,10 @@ public class Relay implements AutoCloseable {
     }
 
     private void sendInit(final String app) throws IOException {
-        this.sendByte(OpCode.INIT.getOrdinal());
-        this.sendString(VERSION);
-        this.sendString(app);
-        this.sendFlush();
+        sendByte(OpCode.INIT.getOrdinal());
+        sendString(VERSION);
+        sendString(app);
+        sendFlush();
     }
 
     private void procInit() throws IOException {
@@ -81,10 +81,10 @@ public class Relay implements AutoCloseable {
 
     private void sendBroadcast(final String app, final byte[] msg) throws IOException {
         synchronized (socketOut) {
-            this.sendByte(OpCode.BROADCAST.getOrdinal());
-            this.sendString(app);
-            this.sendBinary(msg);
-            this.sendFlush();
+            sendByte(OpCode.BROADCAST.getOrdinal());
+            sendString(app);
+            sendBinary(msg);
+            sendFlush();
         }
     }
 }
