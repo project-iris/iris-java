@@ -17,10 +17,25 @@ public class Relay implements AutoCloseable {
 
     public Relay(int port, String clusterName) throws IOException, ProtocolException {
         socket = new Socket(InetAddress.getLoopbackAddress(), port);
-        throw new ProtocolException("Not implemented");
+
+        socketIn = socket.getInputStream();
+        socketOut = socket.getOutputStream();
+
+        sendInit();
+        procInit();
     }
 
     @Override public void close() throws Exception {
+        socketOut.close();
+        socketIn.close();
         socket.close();
+    }
+
+    private void sendInit() throws IOException {
+        throw new IOException("Not implemented");
+    }
+
+    private void procInit() throws IOException {
+        throw new IOException("Not implemented");
     }
 }
