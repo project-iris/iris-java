@@ -9,8 +9,8 @@ import java.net.Socket;
 
 @SuppressWarnings({"resource", "JUnitTestNG", "ProhibitedExceptionDeclared", "UnqualifiedStaticUsage"})
 public class RelayTest {
-    public static final int    IRIS_PORT    = 55555;
-    public static final String CLUSTER_NAME = "testClusterName";
+    private static final int    IRIS_PORT    = 55555;
+    private static final String CLUSTER_NAME = "testClusterName";
 
     @Test public void connectIsWorking() throws Exception {
         try (final Socket ignored = new Socket(InetAddress.getLoopbackAddress(), IRIS_PORT)) {
