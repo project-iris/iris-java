@@ -96,6 +96,9 @@ public class Connection implements AutoCloseable {
         }
     }
 
+    public void broadcast(final String clusterName, final byte[] message) {
+    }
+
     private void sendFlush() throws IOException {
         socketOut.flush();
     }
