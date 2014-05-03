@@ -11,7 +11,7 @@ import java.nio.charset.StandardCharsets;
 /*
  * Message relay between the local app and the local iris node.
  **/
-public class Relay implements AutoCloseable {
+public class Connection implements AutoCloseable {
     private static final int VAR_INT_CONTINUATION_BIT = 0b10000000;
     private static final int VAR_INT_BYTE_MAX_VALUE   = VAR_INT_CONTINUATION_BIT - 1;
     private static final int VAR_INT_BYTE_MASK        = VAR_INT_CONTINUATION_BIT - 1;
@@ -22,7 +22,7 @@ public class Relay implements AutoCloseable {
     private final DataInputStream socketIn;  //
     private final OutputStream    socketOut; //
 
-    public Relay(int port, String clusterName, ConnectionHandler handler) throws IOException, ProtocolException {
+    public Connection(int port, String clusterName, ConnectionHandler handler) throws IOException, ProtocolException {
         socket = new Socket(InetAddress.getLoopbackAddress(), port);
 
         socketIn = new DataInputStream(socket.getInputStream());
