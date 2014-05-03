@@ -1,5 +1,7 @@
 package com.karalabe.iris;
 
+import org.jetbrains.annotations.NotNull;
+
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -41,7 +43,7 @@ public class Connection implements AutoCloseable {
 
     private void procInit() throws IOException {
         if (recvByte() != OpCode.INIT.getOrdinal()) {
-            throw new ProtocolException("Protocol version mismatch");
+            throw new ProtocolException("Protocol violation");
         }
     }
 
@@ -96,7 +98,10 @@ public class Connection implements AutoCloseable {
         }
     }
 
-    public void broadcast(final String clusterName, final byte[] message) {
+    public void broadcast(@NotNull final String clusterName, @NotNull final byte[] message) throws IOException {
+        if (clusterName.isEmpty()) { throw new IllegalArgumentException("Empty cluster name!"); }
+
+        sendBroadcast(clusterName, message);
     }
 
     private void sendFlush() throws IOException {
