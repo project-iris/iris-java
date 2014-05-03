@@ -34,14 +34,6 @@ public class Relay implements AutoCloseable {
         socket.close();
     }
 
-    private void sendInit() throws IOException {
-        throw new IOException("Not implemented");
-    }
-
-    private void procInit() throws IOException {
-        throw new IOException("Not implemented");
-    }
-    
     private void sendByte(final byte data) throws IOException {
     	socketOut.write(new byte[] {data});
     }
@@ -67,4 +59,18 @@ public class Relay implements AutoCloseable {
     private void sendString(final String data) throws IOException {
     	this.sendBinary(data.getBytes());
     }
+    
+
+    private void sendFlush() throws IOException {
+    	socketOut.flush();
+    }
+    
+    private void sendInit() throws IOException {
+        throw new IOException("Not implemented");
+    }
+
+    private void procInit() throws IOException {
+        throw new IOException("Not implemented");
+    }
+    
 }
