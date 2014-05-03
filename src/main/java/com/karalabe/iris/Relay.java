@@ -42,20 +42,29 @@ public class Relay implements AutoCloseable {
         throw new IOException("Not implemented");
     }
     
-    private void sendByte(byte data) throws IOException {
+    private void sendByte(final byte data) throws IOException {
     	socketOut.write(new byte[] {data});
     }
     
-    private void sendBool(boolean data) throws IOException {
+    private void sendBool(final boolean data) throws IOException {
     	this.sendByte(data ? (byte)1 : (byte)0);
     }
     
-    private void sendVarint(long data) throws IOException {
+    private void sendVarint(final long data) throws IOException {
     	long toSend = data;
         while (toSend > XXX) {
             this.sendByte((byte) (XXX2 + (toSend % XXX2)));
             toSend /= XXX2;
         }
     	this.sendByte((byte)toSend);
+    }
+    
+    private void sendBinary(final byte[] data) throws IOException {
+    	this.sendVarint((long)data.length);
+    	socketOut.write(data);
+    }
+    
+    private void sendString(final String data) throws IOException {
+    	this.sendBinary(data.getBytes());
     }
 }
