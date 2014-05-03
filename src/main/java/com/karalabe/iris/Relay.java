@@ -15,6 +15,8 @@ public class Relay implements AutoCloseable {
     private final InputStream  socketIn;  //
     private final OutputStream socketOut; //
 
+    private static final String RELAY_VERSION = "v1.0";
+    
     public static final int XXX  = 127; // FIXME rename and change to binary
     public static final int XXX2 = 128; // FIXME rename
 
@@ -24,7 +26,7 @@ public class Relay implements AutoCloseable {
         socketIn = socket.getInputStream();
         socketOut = socket.getOutputStream();
 
-        sendInit();
+        sendInit(clusterName);
         procInit();
     }
 
@@ -65,8 +67,11 @@ public class Relay implements AutoCloseable {
     	socketOut.flush();
     }
     
-    private void sendInit() throws IOException {
-        throw new IOException("Not implemented");
+    private void sendInit(final String app) throws IOException {
+        this.sendByte(OpCode.INIT.getOrdinal());
+        this.sendString(RELAY_VERSION);
+        this.sendString(app);
+        this.sendFlush();
     }
 
     private void procInit() throws IOException {
