@@ -39,15 +39,17 @@ public class ConnectionTest {
 
         final ConnectionHandler handler = new ConnectionHandler() {
             @Override public void handleBroadcast(@NotNull final byte[] message) {
-                Assert.assertArrayEquals(originalMessage, message);
+                Assert.assertArrayEquals("Wrong message received!", originalMessage, message);
                 semaphore.release();
             }
         };
 
         try (final Connection connection = new Connection(IRIS_PORT, CLUSTER_NAME, handler)) {
             semaphore.acquire();
+
             connection.broadcast(CLUSTER_NAME, originalMessage);
-            Assert.assertTrue(semaphore.tryAcquire(10, TimeUnit.MILLISECONDS));
+
+            Assert.assertTrue("ConnectionHandler was never called!", semaphore.tryAcquire(10, TimeUnit.MILLISECONDS));
         }
         catch (IOException e) {
             Assert.fail(e.getMessage());
