@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/Algo.iml" filepath="$PROJECT_DIR$/Algo.iml" />
+      <module fileurl="file://$PROJECT_DIR$/iris-java.iml" filepath="$PROJECT_DIR$/iris-java.iml" />
     </modules>
   </component>
 </project>

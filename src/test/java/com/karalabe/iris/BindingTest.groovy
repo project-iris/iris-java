@@ -4,5 +4,7 @@ import org.junit.Test
 
 class BindingTest {
 
-    @Test public void testSimpleCases() throws Exception {}
+    @Test public void testSimpleCases() throws Exception {
+
+    }
 }
