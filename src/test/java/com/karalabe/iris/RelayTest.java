@@ -8,10 +8,8 @@ import java.net.InetAddress;
 import java.net.Socket;
 
 public class RelayTest {
-
-    @Test public void testSimpleCases() throws Exception {
-        try (final Socket socket = new Socket(InetAddress.getLocalHost(), 55555)) {
-            socket.isClosed();
+    @Test public void isConnectable() throws Exception {
+        try (final Socket ignored = new Socket(InetAddress.getLoopbackAddress(), 55555)) {
         }
         catch (IOException e) {
             Assert.fail(e.getMessage());
