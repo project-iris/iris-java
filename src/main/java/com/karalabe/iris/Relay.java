@@ -7,7 +7,7 @@ import java.util.List;
 /*
 **/
 
-public class Binding {
+public class Relay {
 
     @NotNull public static List<Integer> run() {
         return null;
