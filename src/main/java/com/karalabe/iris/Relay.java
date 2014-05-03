@@ -32,47 +32,29 @@ public class Relay implements AutoCloseable {
         procInit();
     }
 
-    @Override public void close() throws Exception {
-        socketOut.close();
-        socketIn.close();
-        socket.close();
+    private void sendInit(final String app) throws IOException {
+        this.sendByte(OpCode.INIT.getOrdinal());
+        this.sendString(VERSION);
+        this.sendString(app);
+        this.sendFlush();
+    }
+
+    private void procInit() throws IOException {
+        if (recvByte() != OpCode.INIT.getOrdinal()) {
+            throw new ProtocolException("Protocol version mismatch");
+        }
     }
 
     private void sendByte(final byte data) throws IOException {
         socketOut.write(new byte[]{data});
     }
 
-    private void sendBool(final boolean data) throws IOException {
-        this.sendByte((byte) (data ? 1 : 0));
-    }
-
-    private void sendVarint(final long data) throws IOException {
-        long toSend = data;
-        while (toSend > VAR_INT_BYTE_MAX_VALUE) {
-            this.sendByte((byte) (VAR_INT_CONTINUATION_BIT | (toSend & VAR_INT_BYTE_MASK)));
-            toSend /= VAR_INT_CONTINUATION_BIT;
-        }
-        this.sendByte((byte) toSend);
-    }
-
-    private void sendBinary(final byte[] data) throws IOException {
-        this.sendVarint(data.length);
-        socketOut.write(data);
-    }
-
     private void sendString(final String data) throws IOException {
         this.sendBinary(data.getBytes(StandardCharsets.UTF_8));
     }
 
-    private void sendFlush() throws IOException {
-        socketOut.flush();
-    }
-
-    private void sendInit(final String app) throws IOException {
-        this.sendByte(OpCode.INIT.getOrdinal());
-        this.sendString(VERSION);
-        this.sendString(app);
-        this.sendFlush();
+    private void sendBoolean(final boolean data) throws IOException {
+        this.sendByte((byte) (data ? 1 : 0));
     }
 
     private void sendBroadcast(final String app, final byte[] msg) throws IOException {
@@ -82,6 +64,20 @@ public class Relay implements AutoCloseable {
             this.sendBinary(msg);
             this.sendFlush();
         }
+    }
+
+    private void sendBinary(final byte[] data) throws IOException {
+        this.sendVarint(data.length);
+        socketOut.write(data);
+    }
+
+    private void sendVarint(final long data) throws IOException {
+        long toSend = data;
+        while (toSend > VAR_INT_BYTE_MAX_VALUE) {
+            this.sendByte((byte) (VAR_INT_CONTINUATION_BIT | (toSend & VAR_INT_BYTE_MASK)));
+            toSend /= VAR_INT_CONTINUATION_BIT;
+        }
+        this.sendByte((byte) toSend);
     }
 
     private byte recvByte() throws IOException {
@@ -100,9 +96,13 @@ public class Relay implements AutoCloseable {
         }
     }
 
-    private void procInit() throws IOException {
-        if (recvByte() != OpCode.INIT.getOrdinal()) {
-            throw new ProtocolException("Protocol version mismatch");
-        }
+    private void sendFlush() throws IOException {
+        socketOut.flush();
+    }
+
+    @Override public void close() throws Exception {
+        socketOut.close();
+        socketIn.close();
+        socket.close();
     }
 }

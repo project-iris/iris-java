@@ -4,6 +4,7 @@ package com.karalabe.iris;
  * Internal enumeration for the packet types used.
  */
 /*@formatter:off*/
+@SuppressWarnings("MagicNumber")
 enum OpCode {
     INIT(0),           /** Connection initialization */
     BROADCAST(1),      /** Application broadcast */
@@ -21,7 +22,7 @@ enum OpCode {
 
     private final byte ordinal;
 
-    private OpCode(int ordinal) {
+    OpCode(int ordinal) {
         this.ordinal = (byte) ordinal;
     }
 
