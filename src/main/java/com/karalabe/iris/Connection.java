@@ -1,6 +1,7 @@
 package com.karalabe.iris;
 
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.io.DataInputStream;
 import java.io.IOException;
@@ -24,7 +25,7 @@ public class Connection implements AutoCloseable {
     private final DataInputStream socketIn;  //
     private final OutputStream    socketOut; //
 
-    public Connection(int port, String clusterName, ConnectionHandler handler) throws IOException, ProtocolException {
+    public Connection(int port, @NotNull String clusterName, @Nullable ConnectionHandler handler) throws IOException, ProtocolException {
         socket = new Socket(InetAddress.getLoopbackAddress(), port);
 
         socketIn = new DataInputStream(socket.getInputStream());
@@ -34,7 +35,7 @@ public class Connection implements AutoCloseable {
         procInit();
     }
 
-    private void sendInit(final String app) throws IOException {
+    private void sendInit(@NotNull final String app) throws IOException {
         this.sendByte(OpCode.INIT.getOrdinal());
         this.sendString(VERSION);
         this.sendString(app);
@@ -51,7 +52,7 @@ public class Connection implements AutoCloseable {
         socketOut.write(new byte[]{data});
     }
 
-    private void sendString(final String data) throws IOException {
+    private void sendString(@NotNull final String data) throws IOException {
         this.sendBinary(data.getBytes(StandardCharsets.UTF_8));
     }
 
@@ -59,7 +60,7 @@ public class Connection implements AutoCloseable {
         this.sendByte((byte) (data ? 1 : 0));
     }
 
-    private void sendBroadcast(final String app, final byte[] msg) throws IOException {
+    private void sendBroadcast(@NotNull final String app, @NotNull final byte[] msg) throws IOException {
         synchronized (socketOut) {
             this.sendByte(OpCode.BROADCAST.getOrdinal());
             this.sendString(app);
@@ -68,7 +69,7 @@ public class Connection implements AutoCloseable {
         }
     }
 
-    private void sendBinary(final byte[] data) throws IOException {
+    private void sendBinary(@NotNull final byte[] data) throws IOException {
         this.sendVarint(data.length);
         socketOut.write(data);
     }
