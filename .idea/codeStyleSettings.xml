@@ -150,6 +150,7 @@
           <option name="ALIGN_MULTILINE_METHOD_BRACKETS" value="true" />
           <option name="ALIGN_MULTILINE_PARENTHESIZED_EXPRESSION" value="true" />
           <option name="ALIGN_MULTILINE_ARRAY_INITIALIZER_EXPRESSION" value="true" />
+          <option name="ALIGN_GROUP_FIELD_DECLARATIONS" value="true" />
           <option name="SPACE_WITHIN_BRACES" value="true" />
           <option name="PREFER_PARAMETERS_WRAP" value="true" />
           <option name="KEEP_SIMPLE_BLOCKS_IN_ONE_LINE" value="true" />

@@ -1,6 +1,5 @@
 package com.karalabe.iris;
 
-import org.jetbrains.annotations.Nullable;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -10,22 +9,22 @@ import java.net.Socket;
 
 @SuppressWarnings({"resource", "JUnitTestNG", "ProhibitedExceptionDeclared", "UnqualifiedStaticUsage"})
 public class RelayTest {
-    public static final int IRIS_PORT = 55555;
-
-    @Nullable private static Socket getConnection() {
-        try (final Socket connection = new Socket(InetAddress.getLoopbackAddress(), IRIS_PORT)) {
-            return connection;
-        }
-        catch (IOException ignored) {
-            return null;
-        }
-    }
+    public static final int    IRIS_PORT    = 55555;
+    public static final String CLUSTER_NAME = "testClusterName";
 
     @Test public void connectIsWorking() throws Exception {
-        Assert.assertNotNull(getConnection());
+        try (final Socket ignored = new Socket(InetAddress.getLoopbackAddress(), IRIS_PORT)) {
+        }
+        catch (IOException ignored) {
+            Assert.fail();
+        }
     }
 
     @Test public void handshakeIsWorking() throws Exception {
-        Assert.assertNotNull(getConnection());
+        try (final Relay ignored = new Relay(IRIS_PORT, CLUSTER_NAME)) {
+        }
+        catch (IOException e) {
+            Assert.fail(e.getMessage());
+        }
     }
 }
