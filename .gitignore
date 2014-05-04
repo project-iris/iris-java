@@ -3,3 +3,7 @@
 /classes
 /.settings
 /.gradle
+
+# Ignore IntelliJ IDEA local settings
+/.idea/workspace.xml
+/.idea/tasks.xml
