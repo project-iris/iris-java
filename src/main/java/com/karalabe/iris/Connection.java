@@ -1,15 +1,16 @@
 package com.karalabe.iris;
 
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.ProtocolException;
 import java.net.Socket;
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
-
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 
 /*
  * Message relay between the local app and the local iris node.
@@ -18,6 +19,8 @@ public class Connection implements AutoCloseable {
     private static final int VAR_INT_CONTINUATION_BIT = 0b10000000;
     private static final int VAR_INT_BYTE_MAX_VALUE   = VAR_INT_CONTINUATION_BIT - 1;
     private static final int VAR_INT_BYTE_MASK        = VAR_INT_CONTINUATION_BIT - 1;
+
+    public static final Charset DEFAULT_CHARSET = StandardCharsets.UTF_8;
 
     private static final String VERSION = "v1.0";
 
@@ -53,20 +56,11 @@ public class Connection implements AutoCloseable {
     }
 
     private void sendString(@NotNull final String data) throws IOException {
-        sendBinary(data.getBytes(StandardCharsets.UTF_8));
+        sendBinary(data.getBytes(DEFAULT_CHARSET));
     }
 
     private void sendBoolean(final boolean data) throws IOException {
         sendByte((byte) (data ? 1 : 0));
-    }
-
-    private void sendBroadcast(@NotNull final String app, @NotNull final byte[] msg) throws IOException {
-        synchronized (socketOut) {
-            sendByte(OpCode.BROADCAST.getOrdinal());
-            sendString(app);
-            sendBinary(msg);
-            sendFlush();
-        }
     }
 
     private void sendBinary(@NotNull final byte[] data) throws IOException {
@@ -83,12 +77,21 @@ public class Connection implements AutoCloseable {
         sendByte((byte) toSend);
     }
 
-    private byte recvByte() throws IOException {
+    private void sendBroadcast(@NotNull final String app, @NotNull final byte[] msg) throws IOException {
+        synchronized (socketOut) {
+            sendByte(OpCode.BROADCAST.getOrdinal());
+            sendString(app);
+            sendBinary(msg);
+            sendFlush();
+        }
+    }
+
+    private short recvByte() throws IOException {
         return socketIn.readByte();
     }
 
     private boolean recvBool() throws IOException {
-        final byte data = recvByte();
+        final short data = recvByte();
         switch (data) {
             case 0:
                 return false;
@@ -97,6 +100,20 @@ public class Connection implements AutoCloseable {
             default:
                 throw new ProtocolException("Boolean expected, received: " + data);
         }
+    }
+
+    private long recvVarint() throws IOException {
+        throw new IllegalStateException("Not implemented!");
+    }
+
+    private byte[] recvBinary() throws IOException {
+        final byte[] result = new byte[(int) recvVarint()];
+        socketIn.readFully(result);
+        return result;
+    }
+
+    private String recvString() throws IOException {
+        return new String(recvBinary(), DEFAULT_CHARSET);
     }
 
     public void broadcast(@NotNull final String clusterName, @NotNull final byte[] message) throws IOException {
