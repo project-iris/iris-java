@@ -16,9 +16,10 @@ import java.nio.charset.StandardCharsets;
  * Message relay between the local app and the local iris node.
  **/
 public class Connection implements AutoCloseable {
-    private static final int VAR_INT_CONTINUATION_BIT = 0b10000000;
-    private static final int VAR_INT_BYTE_MAX_VALUE   = VAR_INT_CONTINUATION_BIT - 1;
-    private static final int VAR_INT_BYTE_MASK        = VAR_INT_CONTINUATION_BIT - 1;
+    private static final short VAR_INT_CHUNK_BYTE_LENGTH = 7;
+    private static final short VAR_INT_CONTINUATION_BIT  = 1 << VAR_INT_CHUNK_BYTE_LENGTH;
+    private static final short VAR_INT_BYTE_MAX_VALUE    = VAR_INT_CONTINUATION_BIT - 1;
+    private static final short VAR_INT_BYTE_MASK         = VAR_INT_CONTINUATION_BIT - 1;
 
     public static final Charset DEFAULT_CHARSET = StandardCharsets.UTF_8;
 
@@ -71,8 +72,8 @@ public class Connection implements AutoCloseable {
     private void sendVarint(final long data) throws IOException {
         long toSend = data;
         while (toSend > VAR_INT_BYTE_MAX_VALUE) {
-            sendByte((byte) (VAR_INT_CONTINUATION_BIT | (toSend & VAR_INT_BYTE_MASK)));
-            toSend /= VAR_INT_CONTINUATION_BIT;
+            sendByte((byte) ((VAR_INT_CONTINUATION_BIT | (toSend & VAR_INT_BYTE_MASK)) - Byte.MIN_VALUE));
+            toSend >>= VAR_INT_CHUNK_BYTE_LENGTH;
         }
         sendByte((byte) toSend);
     }
@@ -86,12 +87,12 @@ public class Connection implements AutoCloseable {
         }
     }
 
-    private short recvByte() throws IOException {
+    private byte recvByte() throws IOException {
         return socketIn.readByte();
     }
 
     private boolean recvBool() throws IOException {
-        final short data = recvByte();
+        final byte data = recvByte();
         switch (data) {
             case 0:
                 return false;
