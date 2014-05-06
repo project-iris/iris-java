@@ -12,7 +12,7 @@ public class ProtocolBase implements AutoCloseable {
     private static final short VAR_INT_MERGE_BIT       = 1 << VAR_INT_CHUNK_BIT_SIZE;
     private static final short VAR_INT_CHUNK_BYTE_MASK = VAR_INT_MERGE_BIT - 1;
 
-    static final Charset DEFAULT_CHARSET = StandardCharsets.UTF_8;
+    private static final Charset DEFAULT_CHARSET = StandardCharsets.UTF_8;
 
     @NotNull protected final DataInputStream  socketIn;
     @NotNull protected final DataOutputStream socketOut;

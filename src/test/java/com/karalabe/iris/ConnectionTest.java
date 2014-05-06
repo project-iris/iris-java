@@ -7,6 +7,7 @@ import org.junit.Test;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.Socket;
+import java.nio.charset.StandardCharsets;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 
@@ -32,7 +33,7 @@ public class ConnectionTest {
     }
 
     @Test public void broadcastIsWorking() throws Exception {
-        final byte[] originalMessage = "testMessage".getBytes(Connection.DEFAULT_CHARSET);
+        final byte[] originalMessage = "testMessage".getBytes(StandardCharsets.UTF_8);
 
         final Semaphore semaphore = new Semaphore(1);
 

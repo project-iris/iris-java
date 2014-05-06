@@ -6,6 +6,7 @@ import org.junit.Test;
 import java.io.IOException;
 import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
 @SuppressWarnings({"resource", "JUnitTestNG", "ProhibitedExceptionDeclared", "UnqualifiedStaticUsage", "InstanceMethodNamingConvention"})
@@ -40,7 +41,7 @@ public class ProtocolBaseTest {
     @Test public void binaryDataAreSentAndReceivedCorrectly() throws Exception {
         testProtocol(protocol -> {
             for (final String sentValue : Arrays.asList("", "a", "abcdefg", Arrays.toString(new Exception().getStackTrace()).substring(0, 1000))) {
-                final byte[] bytes = sentValue.getBytes(ProtocolBase.DEFAULT_CHARSET);
+                final byte[] bytes = sentValue.getBytes(StandardCharsets.UTF_8);
                 protocol.sendBinary(bytes);
                 Assert.assertArrayEquals(bytes, protocol.recvBinary());
             }
