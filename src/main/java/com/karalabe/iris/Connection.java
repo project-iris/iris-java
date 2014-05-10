@@ -14,8 +14,8 @@ import java.net.Socket;
 public class Connection extends ProtocolBase implements ConnectionApi {
     private static final String VERSION = "v1.0";
 
-    private final Socket            socket;    // Network connection to the iris node
-    private final ConnectionHandler handler;
+    private final Socket            socket;  // Network connection to the iris node
+    private final ConnectionHandler handler; // Callback handler
 
     public Connection(int port, @NotNull String clusterName, @Nullable ConnectionHandler handler) throws IOException {
         this(new Socket(InetAddress.getLoopbackAddress(), port), handler);
@@ -44,6 +44,80 @@ public class Connection extends ProtocolBase implements ConnectionApi {
         return null;
     }
 
+    private Object processRequest() throws IOException {
+        final long reqId = recvVarint();
+        final byte[] message = recvBinary();
+
+        handler.handleRequest(reqId, message);
+        return null;
+    }
+
+    private Object processReply() throws IOException {
+        final long reqId = recvVarint();
+        final boolean hasTimedOut = recvBoolean();
+
+        if (hasTimedOut) {
+            handler.handleReply(reqId, null);
+        } else {
+
+            final byte[] reply = recvBinary();
+            handler.handleReply(reqId, reply);
+        }
+        return null;
+    }
+
+    private Object processPublish() throws IOException {
+        final String topic = recvString();
+        final byte[] message = recvBinary();
+
+        handler.handlePublish(topic, message);
+        return null;
+    }
+
+    private Object processTunnelRequest() throws IOException {
+        final long tmpId = recvVarint();
+        final long bufferSize = recvVarint();
+
+        handler.handleTunnelRequest(tmpId, bufferSize);
+        return null;
+    }
+
+    private Object processTunnelReply() throws IOException {
+        final long tunId = recvVarint();
+        final boolean hasTimedOut = recvBoolean();
+
+        if (hasTimedOut) {
+            handler.handleTunnelReply(tunId, 0, true);
+        } else {
+
+            final long bufferSize = recvVarint();
+            handler.handleTunnelReply(tunId, bufferSize, false);
+        }
+        return null;
+    }
+
+    private Object processTunnelData() throws IOException {
+        final long tunId = recvVarint();
+        final byte[] message = recvBinary();
+
+        handler.handleTunnelData(tunId, message);
+        return null;
+    }
+
+    private Object processTunnelAck() throws IOException {
+        final long tunId = recvVarint();
+
+        handler.handleTunnelAck(tunId);
+        return null;
+    }
+
+    private Object processTunnelClose() throws IOException {
+        final long tunId = recvVarint();
+
+        handler.handleTunnelClose(tunId);
+        return null;
+    }
+
     public void process() throws Exception {
         // TODO process all messages
         try {
@@ -52,6 +126,36 @@ public class Connection extends ProtocolBase implements ConnectionApi {
                 case BROADCAST:
                     processBroadcast();
                     break;
+
+                case REQUEST:
+                    processRequest();
+                    break;
+                case REPLY:
+                    processReply();
+                    break;
+
+                case PUBLISH:
+                    processBroadcast();
+                    break;
+
+                case TUNNEL_REQUEST:
+                    processTunnelRequest();
+                    break;
+                case TUNNEL_REPLY:
+                    processTunnelReply();
+                    break;
+                case TUNNEL_DATA:
+                    processTunnelData();
+                    break;
+                case TUNNEL_ACK:
+                    processTunnelAck();
+                    break;
+                case TUNNEL_CLOSE:
+                    processTunnelClose();
+                    break;
+
+                case CLOSE:
+                    return;
 
                 default:
                 case INIT:
@@ -113,6 +217,16 @@ public class Connection extends ProtocolBase implements ConnectionApi {
         return null;
     }
 
+    private byte[] sendReply(final long requestId, final byte[] request) throws IOException {
+        synchronized (socketOut) {
+            sendByte(OpCode.REPLY.getOrdinal());
+            sendVarint(requestId);
+            sendBinary(request);
+            sendFlush();
+        }
+        return null;
+    }
+
     @Override public void subscribe(@NotNull final String topic, @NotNull final SubscriptionHandler handler) throws IOException {
         Validators.validateTopic(topic);
 
@@ -141,6 +255,13 @@ public class Connection extends ProtocolBase implements ConnectionApi {
         }
     }
 
+    private void sendClose() throws IOException {
+        synchronized (socketOut) {
+            sendByte(OpCode.CLOSE.getOrdinal());
+            sendFlush();
+        }
+    }
+
     @Override public void publish(@NotNull final String topic, @NotNull final byte[] message) throws IOException {
         Validators.validateTopic(topic);
         Validators.validateMessage(message);
@@ -157,16 +278,58 @@ public class Connection extends ProtocolBase implements ConnectionApi {
         }
     }
 
-    @Override public Tunnel tunnel(@NotNull final String clusterName, final long timeout) throws IOException {
+    @Override public Tunnel tunnel(@NotNull final String clusterName, final long timeOutMillis) throws IOException {
         Validators.validateClusterName(clusterName);
 
-        return doTunnel(clusterName, timeout);
+        return sendTunnel(0, clusterName, 0, timeOutMillis); // TODO
     }
 
-    private Tunnel doTunnel(@NotNull final String clusterName, final long timeout) throws IOException {
+    @NotNull private Tunnel sendTunnel(final long tunnelId, @NotNull final String clusterName, final long bufferSize, final long timeOutMillis) throws IOException {
         synchronized (socketOut) {
             sendByte(OpCode.TUNNEL_REQUEST.getOrdinal());
+            sendVarint(tunnelId);
             sendString(clusterName);
+            sendVarint(bufferSize); // TODO buf?
+            sendVarint(timeOutMillis);
+            sendFlush();
+        }
+        return null;
+    }
+
+    private Tunnel sendTunnelReply(final long tempId, final long tunnelId, final long bufferSize) throws IOException {
+        synchronized (socketOut) {
+            sendByte(OpCode.TUNNEL_REPLY.getOrdinal());
+            sendVarint(tempId);     // TODO huh?
+            sendVarint(tunnelId);
+            sendVarint(bufferSize); // TODO buf?
+            sendFlush();
+        }
+        return null;
+    }
+
+    private Tunnel sendTunnelData(final long tunnelId, @NotNull final byte[] message) throws IOException {
+        synchronized (socketOut) {
+            sendByte(OpCode.TUNNEL_DATA.getOrdinal());
+            sendVarint(tunnelId);
+            sendBinary(message);
+            sendFlush();
+        }
+        return null;
+    }
+
+    private Tunnel sendTunnelAck(final long tunnelId) throws IOException {
+        synchronized (socketOut) {
+            sendByte(OpCode.TUNNEL_ACK.getOrdinal());
+            sendVarint(tunnelId);
+            sendFlush();
+        }
+        return null;
+    }
+
+    private Tunnel sendTunnelClose(final long tunnelId) throws IOException {
+        synchronized (socketOut) {
+            sendByte(OpCode.TUNNEL_CLOSE.getOrdinal());
+            sendVarint(tunnelId);
             sendFlush();
         }
         return null;
