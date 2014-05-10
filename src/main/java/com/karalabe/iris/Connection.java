@@ -32,21 +32,34 @@ public class Connection extends ProtocolBase implements ConnectionApi {
     }
 
     private void sendInit(@NotNull final String clusterName) throws IOException {
-        sendByte(OpCode.INIT.getOrdinal());
-        sendString(VERSION);
-        sendString(clusterName);
-        sendFlush();
-    }
-
-    private void procInit() throws IOException {
-        if (recvByte() != OpCode.INIT.getOrdinal()) {
-            throw new ProtocolException("Protocol violation");
+        Connection.validateClusterName(clusterName);
+        synchronized (socketOut) {
+            sendByte(OpCode.INIT.getOrdinal());
+            sendString(VERSION);
+            sendString(clusterName);
+            sendFlush();
         }
     }
 
-    @Override public void broadcast(@NotNull final String clusterName, @NotNull final byte[] message) throws IOException {
+    private void procInit() throws IOException {
+        if (recvByte() != OpCode.INIT.getOrdinal()) { throw new ProtocolException("Protocol violation"); }
+    }
+
+    private static void validateClusterName(@NotNull final String clusterName) {
         if (clusterName.isEmpty()) { throw new IllegalArgumentException("Empty cluster name!"); }
+    }
+
+    private static void validateTopic(@NotNull final String topic) {
+        if (topic.isEmpty()) { throw new IllegalArgumentException("Empty topic name!"); }
+    }
+
+    private static void validateMessage(@NotNull final byte[] message) {
         if (message.length == 0) { throw new IllegalArgumentException("Empty message!"); }
+    }
+
+    @Override public void broadcast(@NotNull final String clusterName, @NotNull final byte[] message) throws IOException {
+        Connection.validateClusterName(clusterName);
+        Connection.validateMessage(message);
 
         doBroadcast(clusterName, message);
     }
@@ -61,8 +74,8 @@ public class Connection extends ProtocolBase implements ConnectionApi {
     }
 
     @NotNull @Override public byte[] request(@NotNull final String clusterName, @NotNull final byte[] request, final long timeout) throws IOException {
-        if (clusterName.isEmpty()) { throw new IllegalArgumentException("Empty cluster name!"); }
-        if (request.length == 0) { throw new IllegalArgumentException("Empty request!"); }
+        Connection.validateClusterName(clusterName);
+        Connection.validateMessage(request);
 
         return doRequest(clusterName, request, timeout);
     }
@@ -80,7 +93,7 @@ public class Connection extends ProtocolBase implements ConnectionApi {
     }
 
     @Override public void subscribe(@NotNull final String topic, @NotNull final SubscriptionHandler handler) throws IOException {
-        if (topic.isEmpty()) { throw new IllegalArgumentException("Empty topic name!"); }
+        Connection.validateTopic(topic);
 
         doSubscribe(topic, handler);
     }
@@ -95,7 +108,7 @@ public class Connection extends ProtocolBase implements ConnectionApi {
     }
 
     @Override public void unsubscribe(@NotNull final String topic) throws IOException {
-        if (topic.isEmpty()) { throw new IllegalArgumentException("Empty topic name!"); }
+        Connection.validateTopic(topic);
 
         doUnsubscribe(topic);
     }
@@ -110,8 +123,8 @@ public class Connection extends ProtocolBase implements ConnectionApi {
     }
 
     @Override public void publish(@NotNull final String topic, @NotNull final byte[] message) throws IOException {
-        if (topic.isEmpty()) { throw new IllegalArgumentException("Empty topic name!"); }
-        if (message.length == 0) { throw new IllegalArgumentException("Empty message!"); }
+        Connection.validateTopic(topic);
+        Connection.validateMessage(message);
 
         doPublish(topic, message);
     }
@@ -127,7 +140,7 @@ public class Connection extends ProtocolBase implements ConnectionApi {
     }
 
     @Override public Tunnel tunnel(@NotNull final String clusterName, final long timeout) throws IOException {
-        if (clusterName.isEmpty()) { throw new IllegalArgumentException("Empty cluster name!"); }
+        Connection.validateClusterName(clusterName);
 
         return doTunnel(clusterName, timeout);
     }
