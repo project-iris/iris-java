@@ -48,6 +48,7 @@ public class ConnectionTest {
             semaphore.acquire();
 
             connection.broadcast(CLUSTER_NAME, originalMessage);
+            connection.process(); // TODO move this
 
             Assert.assertTrue("ConnectionHandler was never called!", semaphore.tryAcquire(10, TimeUnit.MILLISECONDS));
         }

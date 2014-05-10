@@ -20,8 +20,8 @@ public class Connection extends ProtocolBase implements ConnectionApi {
     public Connection(int port, @NotNull String clusterName, @Nullable ConnectionHandler handler) throws IOException {
         this(new Socket(InetAddress.getLoopbackAddress(), port), handler);
 
-        sendInit(clusterName);
-        procInit();
+        init(clusterName);
+        processInit();
     }
 
     public Connection(@NotNull final Socket socket, @Nullable ConnectionHandler handler) throws IOException {
@@ -31,8 +31,45 @@ public class Connection extends ProtocolBase implements ConnectionApi {
         this.handler = handler;
     }
 
-    private void sendInit(@NotNull final String clusterName) throws IOException {
-        Connection.validateClusterName(clusterName);
+    // TODO precessors; should be segregated
+
+    private void processInit() throws IOException {
+        if (recvByte() != OpCode.INIT.getOrdinal()) { throw new ProtocolException("Protocol violation"); }
+    }
+
+    private Object processBroadcast() throws IOException {
+        final byte[] message = recvBinary();
+
+        handler.handleBroadcast(message);
+        return null;
+    }
+
+    public void process() throws Exception {
+        // TODO process all messages
+        try {
+            final OpCode opCode = OpCode.valueOf(recvByte());
+            switch (opCode) {
+                case BROADCAST:
+                    processBroadcast();
+                    break;
+
+                default:
+                case INIT:
+                    throw new IllegalStateException("Illegal opcode received: " + opCode);
+            }
+        }
+        finally {
+            close();
+        }
+    }
+
+    private void init(@NotNull final String clusterName) throws IOException {
+        Validators.validateClusterName(clusterName);
+
+        sendInit(clusterName);
+    }
+
+    private void sendInit(final String clusterName) throws IOException {
         synchronized (socketOut) {
             sendByte(OpCode.INIT.getOrdinal());
             sendString(VERSION);
@@ -41,30 +78,14 @@ public class Connection extends ProtocolBase implements ConnectionApi {
         }
     }
 
-    private void procInit() throws IOException {
-        if (recvByte() != OpCode.INIT.getOrdinal()) { throw new ProtocolException("Protocol violation"); }
-    }
-
-    private static void validateClusterName(@NotNull final String clusterName) {
-        if (clusterName.isEmpty()) { throw new IllegalArgumentException("Empty cluster name!"); }
-    }
-
-    private static void validateTopic(@NotNull final String topic) {
-        if (topic.isEmpty()) { throw new IllegalArgumentException("Empty topic name!"); }
-    }
-
-    private static void validateMessage(@NotNull final byte[] message) {
-        if (message.length == 0) { throw new IllegalArgumentException("Empty message!"); }
-    }
-
     @Override public void broadcast(@NotNull final String clusterName, @NotNull final byte[] message) throws IOException {
-        Connection.validateClusterName(clusterName);
-        Connection.validateMessage(message);
+        Validators.validateClusterName(clusterName);
+        Validators.validateMessage(message);
 
-        doBroadcast(clusterName, message);
+        sendBroadcast(clusterName, message);
     }
 
-    private void doBroadcast(@NotNull final String clusterName, @NotNull final byte[] message) throws IOException {
+    private void sendBroadcast(@NotNull final String clusterName, @NotNull final byte[] message) throws IOException {
         synchronized (socketOut) {
             sendByte(OpCode.BROADCAST.getOrdinal());
             sendString(clusterName);
@@ -73,33 +94,32 @@ public class Connection extends ProtocolBase implements ConnectionApi {
         }
     }
 
-    @NotNull @Override public byte[] request(@NotNull final String clusterName, @NotNull final byte[] request, final long timeout) throws IOException {
-        Connection.validateClusterName(clusterName);
-        Connection.validateMessage(request);
+    @NotNull @Override public byte[] request(@NotNull final String clusterName, @NotNull final byte[] request, final long timeOutMillis) throws IOException {
+        Validators.validateClusterName(clusterName);
+        Validators.validateMessage(request);
 
-        return doRequest(clusterName, request, timeout);
+        return sendRequest(0, clusterName, request, timeOutMillis); // TODO
     }
 
-    private byte[] doRequest(final String clusterName, final byte[] request, final long timeout) throws IOException {
-        // FIXME unfinished stub
-        final byte[] result = null;
+    private byte[] sendRequest(final long requestId, final String clusterName, final byte[] request, final long timeOutMillis) throws IOException {
         synchronized (socketOut) {
             sendByte(OpCode.REQUEST.getOrdinal());
+            sendVarint(requestId);
             sendString(clusterName);
             sendBinary(request);
+            sendVarint(timeOutMillis);
             sendFlush();
         }
-        return result;
+        return null;
     }
 
     @Override public void subscribe(@NotNull final String topic, @NotNull final SubscriptionHandler handler) throws IOException {
-        Connection.validateTopic(topic);
+        Validators.validateTopic(topic);
 
-        doSubscribe(topic, handler);
+        sendSubscribe(topic);
     }
 
-    private void doSubscribe(@NotNull final String topic, final SubscriptionHandler handler) throws IOException {
-        // FIXME unfinished stub
+    private void sendSubscribe(@NotNull final String topic) throws IOException {
         synchronized (socketOut) {
             sendByte(OpCode.SUBSCRIBE.getOrdinal());
             sendString(topic);
@@ -108,13 +128,12 @@ public class Connection extends ProtocolBase implements ConnectionApi {
     }
 
     @Override public void unsubscribe(@NotNull final String topic) throws IOException {
-        Connection.validateTopic(topic);
+        Validators.validateTopic(topic);
 
-        doUnsubscribe(topic);
+        sendUnsubscribe(topic);
     }
 
-    private void doUnsubscribe(@NotNull final String topic) throws IOException {
-        // FIXME unfinished stub
+    private void sendUnsubscribe(@NotNull final String topic) throws IOException {
         synchronized (socketOut) {
             sendByte(OpCode.UNSUBSCRIBE.getOrdinal());
             sendString(topic);
@@ -123,14 +142,13 @@ public class Connection extends ProtocolBase implements ConnectionApi {
     }
 
     @Override public void publish(@NotNull final String topic, @NotNull final byte[] message) throws IOException {
-        Connection.validateTopic(topic);
-        Connection.validateMessage(message);
+        Validators.validateTopic(topic);
+        Validators.validateMessage(message);
 
-        doPublish(topic, message);
+        sendPublish(topic, message);
     }
 
-    private void doPublish(@NotNull final String topic, @NotNull final byte[] message) throws IOException {
-        // FIXME unfinished stub
+    private void sendPublish(@NotNull final String topic, @NotNull final byte[] message) throws IOException {
         synchronized (socketOut) {
             sendByte(OpCode.PUBLISH.getOrdinal());
             sendString(topic);
@@ -140,20 +158,18 @@ public class Connection extends ProtocolBase implements ConnectionApi {
     }
 
     @Override public Tunnel tunnel(@NotNull final String clusterName, final long timeout) throws IOException {
-        Connection.validateClusterName(clusterName);
+        Validators.validateClusterName(clusterName);
 
         return doTunnel(clusterName, timeout);
     }
 
     private Tunnel doTunnel(@NotNull final String clusterName, final long timeout) throws IOException {
-        // FIXME unfinished stub
-        final Tunnel result = null;
         synchronized (socketOut) {
             sendByte(OpCode.TUNNEL_REQUEST.getOrdinal());
             sendString(clusterName);
             sendFlush();
         }
-        return result;
+        return null;
     }
 
     @Override public void close() throws Exception {
