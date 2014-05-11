@@ -8,7 +8,7 @@ import java.io.IOException;
 
 @FunctionalInterface
 public interface PublishCallbackHandler extends StaticCallbackHandler, CallbackHandler {
-    @NotNull byte[] handlePublish(@NotNull String topic, @NotNull byte[] message) throws IOException;
+    @NotNull byte[] handleEvent(@NotNull String topic, @NotNull byte[] message) throws IOException;
 
     @Override default Object getId() { return BroadcastCallbackHandler.getBroadcastId(); }
 

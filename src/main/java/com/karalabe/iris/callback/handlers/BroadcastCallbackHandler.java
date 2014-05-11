@@ -9,7 +9,7 @@ import java.io.IOException;
 @FunctionalInterface
 public interface BroadcastCallbackHandler extends StaticCallbackHandler, CallbackHandler {
     /* Handles a message broadcasted to all applications of the local type.*/
-    void handleBroadcast(@NotNull byte[] message) throws IOException;
+    void handleEvent(@NotNull byte[] message) throws IOException;
 
     @Override default Object getId() { return BroadcastCallbackHandler.getBroadcastId(); }
 

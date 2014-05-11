@@ -1,6 +1,7 @@
 package com.karalabe.iris;
 
 import com.karalabe.iris.callback.handlers.RequestCallbackHandler;
+import com.karalabe.iris.callback.handlers.SubscriptionHandler;
 import com.karalabe.iris.callback.handlers.TunnelCallbackHandlers;
 import org.jetbrains.annotations.NotNull;
 
@@ -29,16 +30,16 @@ public interface ConnectionApi extends AutoCloseable {
         throw new IllegalStateException("Not implemented!");
     }
 
-    /* Publishes an event asynchronously to topic. No guarantees are made that all subscribers receive the message (best effort).
-     * The method does blocks until the message is forwarded to the relay, or an error occurs, in which case an iris.Error is returned. */
-    default void publish(@NotNull final String topic, @NotNull byte[] message) throws IOException {
-        throw new IllegalStateException("Not implemented!");
-    }
-
     /* Unsubscribes from topic, receiving no more event notifications for it.
      * The method does blocks until the unsubscription is forwarded to the relay, or an error occurs, in which case an iris.Error is returned.
      * Unsubscribing from a topic not subscribed to is considered a programming error and will result in a panic! */
-    default void unsubscribe(@NotNull final String topic) throws IOException {
+    default void unsubscribe(@NotNull final String topic, @NotNull final SubscriptionHandler handler) throws IOException {
+        throw new IllegalStateException("Not implemented!");
+    }
+
+    /* Publishes an event asynchronously to topic. No guarantees are made that all subscribers receive the message (best effort).
+     * The method does blocks until the message is forwarded to the relay, or an error occurs, in which case an iris.Error is returned. */
+    default void publish(@NotNull final String topic, @NotNull byte[] message) throws IOException {
         throw new IllegalStateException("Not implemented!");
     }
 

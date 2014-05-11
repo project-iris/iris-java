@@ -11,5 +11,5 @@ import java.io.IOException;
 public interface ReplyCallbackHandler extends InstanceCallbackHandler, CallbackHandler {
     /* Handles a request (message), returning the reply that should be forwarded back to the caller.
      * If the method crashes, nothing is returned and the caller will eventually time out.*/
-    @NotNull byte[] handleReply(long requestId, @Nullable byte[] reply) throws IOException;
+    @NotNull byte[] handleEvent(long requestId, @Nullable byte[] reply) throws IOException;
 }
