@@ -68,4 +68,9 @@ public class ProtocolBaseTest {
             Assert.fail(e.getMessage());
         }
     }
+
+    @FunctionalInterface
+    public interface TestConsumer<T> {
+        void accept(T t) throws Exception;
+    }
 }
