@@ -1,5 +1,7 @@
 package com.karalabe.iris;
 
+import com.karalabe.iris.callback.handlers.RequestCallbackHandler;
+import com.karalabe.iris.callback.handlers.TunnelCallbackHandlers;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.IOException;
@@ -16,7 +18,7 @@ public interface ConnectionApi extends AutoCloseable {
     /* Executes a synchronous request to app, load balanced between all the active ones, returning the received reply.
      * In case of a failure, the function returns a nil reply with an iris.Error stating the reason.
      * The timeOutMillis unit is in milliseconds. Setting anything smaller will result in a panic! */
-    default @NotNull byte[] request(@NotNull final String clusterName, @NotNull byte[] request, long timeOutMillis) throws IOException {
+    default void request(@NotNull final String clusterName, @NotNull byte[] request, long timeOutMillis, RequestCallbackHandler callbackHandler) throws IOException {
         throw new IllegalStateException("Not implemented!");
     }
 
@@ -43,7 +45,7 @@ public interface ConnectionApi extends AutoCloseable {
     /* Opens a direct tunnel to an instance of app, allowing pairwise-exclusive and order-guaranteed message passing between them.
      * The method blocks until either the newly created tunnel is set up, or an error occurs, in which case a nil tunnel and an iris.Error is returned.
      * The timeOutMillis unit is in milliseconds. Setting anything smaller will result in a panic! */
-    default Tunnel tunnel(@NotNull final String clusterName, long timeOutMillis) throws IOException {
+    default void tunnel(@NotNull final String clusterName, long timeOutMillis, TunnelCallbackHandlers callbackHandlers) throws IOException {
         throw new IllegalStateException("Not implemented!");
     }
 
