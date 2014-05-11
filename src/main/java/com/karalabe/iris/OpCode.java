@@ -6,7 +6,7 @@ import java.util.stream.Stream;
 /**
  * Internal enumeration for the packet types used.
  */
-@SuppressWarnings("MagicNumber") enum OpCode {
+@SuppressWarnings("MagicNumber") public enum OpCode {
     /*@formatter:off*/
     INIT(0),           /** Connection initialization */
     BROADCAST(1),      /** Application broadcast */

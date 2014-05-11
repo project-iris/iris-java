@@ -2,9 +2,18 @@ package com.karalabe.iris;
 
 import com.karalabe.iris.callback.CallbackHandlerRegistry;
 import com.karalabe.iris.callback.CallbackRegistry;
-import com.karalabe.iris.callback.InstanceCallbackHandler;
 import com.karalabe.iris.callback.StaticCallbackHandler;
-import com.karalabe.iris.callback.handlers.*;
+import com.karalabe.iris.protocols.Tunnel.TunnelApi;
+import com.karalabe.iris.protocols.Tunnel.TunnelCallbackHandlers;
+import com.karalabe.iris.protocols.Tunnel.TunnelTransfer;
+import com.karalabe.iris.protocols.Validators;
+import com.karalabe.iris.protocols.broadcast.BroadcastApi;
+import com.karalabe.iris.protocols.broadcast.BroadcastTransfer;
+import com.karalabe.iris.protocols.publish_subscribe.*;
+import com.karalabe.iris.protocols.request_reply.ReplyTransfer;
+import com.karalabe.iris.protocols.request_reply.RequestApi;
+import com.karalabe.iris.protocols.request_reply.RequestCallbackHandler;
+import com.karalabe.iris.protocols.request_reply.RequestTransfer;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.IOException;
@@ -15,366 +24,113 @@ import java.net.Socket;
 /*
  * Message relay between the local app and the local iris node.
  **/
-public class Connection extends ProtocolBase implements ConnectionApi, CallbackRegistry {
+public class Connection implements CallbackRegistry, AutoCloseable, SubscribeApi, PublishApi, TunnelApi, BroadcastApi, RequestApi {
     private static final String VERSION = "v1.0";
 
-    private final CallbackHandlerRegistry callbacks = new CallbackHandlerRegistry();
-    private final Socket socket;  // Network connection to the iris node
+    private final Socket                  socket;  // Network connection to the iris node
+    private final ProtocolBase            protocol;
+    private final CallbackHandlerRegistry callbacks;
 
-    public Connection(@NotNull final Socket socket) throws IOException {
-        super(socket.getInputStream(), socket.getOutputStream());
-
-        this.socket = socket;
-    }
+    private final BroadcastTransfer broadcastTransfer;
+    private final RequestTransfer   requestTransfer;
+    private final ReplyTransfer     replyTransfer;
+    private final PublishTransfer   publishTransfer;
+    private final SubscribeTransfer subscribeTransfer;
+    private final TunnelTransfer    tunnelTransfer;
 
     public Connection(int port, @NotNull String clusterName) throws IOException {
-        this(new Socket(InetAddress.getLoopbackAddress(), port));
+        socket = new Socket(InetAddress.getLoopbackAddress(), port);
+
+        protocol = new ProtocolBase(socket.getInputStream(), socket.getOutputStream());
+        callbacks = new CallbackHandlerRegistry();
+
+        broadcastTransfer = new BroadcastTransfer(protocol, callbacks);
+        requestTransfer = new RequestTransfer(protocol, callbacks);
+        replyTransfer = new ReplyTransfer(protocol, callbacks);
+        publishTransfer = new PublishTransfer(protocol, callbacks);
+        subscribeTransfer = new SubscribeTransfer(protocol, callbacks);
+        tunnelTransfer = new TunnelTransfer(protocol, callbacks);
 
         init(clusterName);
         handleInit();
-    }
-
-    private void init(@NotNull final String clusterName) throws IOException {
-        Validators.validateClusterName(clusterName);
-
-        synchronized (socketOut) {
-            sendByte(OpCode.INIT.getOrdinal());
-            sendString(VERSION);
-            sendString(clusterName);
-            sendFlush();
-        }
-    }
-
-    private void handleInit() throws IOException {
-        if (recvByte() != OpCode.INIT.getOrdinal()) {
-            throw new ProtocolException("Protocol violation");
-        }
-    }
-
-    // TODO extract to BroadcastProtocol
-
-    @Override public void broadcast(@NotNull final String clusterName, @NotNull final byte[] message) throws IOException {
-        Validators.validateClusterName(clusterName);
-        Validators.validateMessage(message);
-
-        synchronized (socketOut) {
-            sendByte(OpCode.BROADCAST.getOrdinal());
-            sendString(clusterName);
-            sendBinary(message);
-            sendFlush();
-        }
-    }
-
-    private void handleBroadcast() throws IOException {
-        try {
-            final byte[] message = recvBinary();
-
-            final BroadcastCallbackHandler handler = callbacks.useCallbackHandler(BroadcastCallbackHandler.getBroadcastId());
-            handler.handleEvent(message);
-        }
-        catch (IllegalArgumentException e) {
-            System.err.printf("No %s found!%n", BroadcastCallbackHandler.class.getSimpleName());
-        }
-    }
-
-    // TODO extract to RequestProtocol
-
-    @Override public void request(@NotNull final String clusterName, @NotNull final byte[] request, final long timeOutMillis, RequestCallbackHandler callbackHandler) throws IOException {
-        Validators.validateClusterName(clusterName);
-        Validators.validateMessage(request);
-
-        final Long requestId = addCallbackHandler(callbackHandler);
-        synchronized (socketOut) {
-            sendByte(OpCode.REQUEST.getOrdinal());
-            sendVarint(requestId);
-            sendString(clusterName);
-            sendBinary(request);
-            sendVarint(timeOutMillis);
-            sendFlush();
-        }
-    }
-
-    private void handleRequest() throws IOException {
-        try {
-            final long requestId = recvVarint();
-            final byte[] message = recvBinary();
-
-            final RequestCallbackHandler handler = callbacks.useCallbackHandler(requestId);
-            handler.handleEvent(requestId, message);
-        }
-        catch (IllegalArgumentException e) {
-            System.err.printf("No %s found!%n", RequestCallbackHandler.class.getSimpleName());
-        }
-    }
-
-    // TODO extract to ReplyProtocol
-    // TODO not sure how/where this fits in ...
-
-    private void sendReply(final long requestId, final byte[] request) throws IOException {
-        synchronized (socketOut) {
-            sendByte(OpCode.REPLY.getOrdinal());
-            sendVarint(requestId);
-            sendBinary(request);
-            sendFlush();
-        }
-    }
-
-    private void handleReply() throws IOException {
-        try {
-            final long requestId = recvVarint();
-            final boolean hasTimedOut = recvBoolean();
-
-            final ReplyCallbackHandler handler = callbacks.useCallbackHandler(requestId);
-            if (hasTimedOut) {
-                handler.handleEvent(requestId, null);
-            } else {
-
-                final byte[] reply = recvBinary();
-                handler.handleEvent(requestId, reply);
-            }
-        }
-        catch (IllegalArgumentException e) {
-            System.err.printf("No %s found!%n", ReplyCallbackHandler.class.getSimpleName());
-        }
-    }
-
-    // TODO extract to PublishSubscribeProtocol
-
-    @Override public void publish(@NotNull final String topic, @NotNull final byte[] message) throws IOException {
-        Validators.validateTopic(topic);
-        Validators.validateMessage(message);
-
-        synchronized (socketOut) {
-            sendByte(OpCode.PUBLISH.getOrdinal());
-            sendString(topic);
-            sendBinary(message);
-            sendFlush();
-        }
-    }
-
-    private void handlePublish() throws IOException {
-        try {
-            final String topic = recvString();
-            final byte[] message = recvBinary();
-
-            final PublishCallbackHandler handler = callbacks.useCallbackHandler(PublishCallbackHandler.getPublishId());
-            handler.handleEvent(topic, message);
-        }
-        catch (IllegalArgumentException e) {
-            System.err.printf("No %s found!%n", PublishCallbackHandler.class.getSimpleName());
-        }
-    }
-
-    @Override public void subscribe(@NotNull final String topic, @NotNull final SubscriptionHandler handler) throws IOException {
-        Validators.validateTopic(topic);
-
-        final Long subscriptionId = addCallbackHandler(handler);// TODO is the topic the id?
-        synchronized (socketOut) {
-            sendByte(OpCode.SUBSCRIBE.getOrdinal());
-            sendVarint(subscriptionId); // TODO
-            sendString(topic);
-            sendFlush();
-        }
-    }
-
-    @Override public void unsubscribe(@NotNull final String topic, @NotNull final SubscriptionHandler handler) throws IOException {
-        Validators.validateTopic(topic);
-
-        final Long subscriptionId = addCallbackHandler(handler);// TODO is the topic the id?
-        synchronized (socketOut) {
-            sendByte(OpCode.UNSUBSCRIBE.getOrdinal());
-            sendVarint(subscriptionId); // TODO
-            sendString(topic);
-            sendFlush();
-        }
-    }
-
-    // TODO is there such a thing?
-    private void handleSubscribe() throws IOException {
-        try {
-            final long id = recvVarint(); // TODO tmpId?
-            final byte[] message = recvBinary();
-
-            final SubscriptionHandler handler = callbacks.useCallbackHandler(id);
-            handler.handleEvent(message);
-        }
-        catch (IllegalArgumentException e) {
-            System.err.printf("No %s found!%n", PublishCallbackHandler.class.getSimpleName());
-        }
-    }
-
-    // TODO extract to TunnelProtocol
-    @Override public void tunnel(@NotNull final String clusterName, final long timeOutMillis, TunnelCallbackHandlers callbackHandlers) throws IOException {
-        Validators.validateClusterName(clusterName);
-
-        final int bufferSize = 0; // TODO
-        final long id = addCallbackHandler(callbackHandlers);
-        synchronized (socketOut) {
-            sendByte(OpCode.TUNNEL_REQUEST.getOrdinal());
-            sendVarint(id);
-            sendString(clusterName);
-            sendVarint(bufferSize); // TODO buf?
-            sendVarint(timeOutMillis);
-            sendFlush();
-        }
-    }
-
-    private void handleTunnelRequest() throws IOException {
-        try {
-            final long id = recvVarint(); // TODO tmpId?
-            final long bufferSize = recvVarint();
-
-            final TunnelCallbackHandlers handler = callbacks.useCallbackHandler(id);
-            handler.handleTunnelRequest(id, bufferSize);
-        }
-        catch (IllegalArgumentException e) {
-            System.err.printf("No %s found!%n", TunnelCallbackHandlers.class.getSimpleName());
-        }
-    }
-
-    private void sendTunnelReply(final long tempId, final long tunnelId, final long bufferSize) throws IOException {
-        synchronized (socketOut) {
-            sendByte(OpCode.TUNNEL_REPLY.getOrdinal());
-            sendVarint(tempId);     // TODO huh?
-            sendVarint(tunnelId);
-            sendVarint(bufferSize); // TODO buf?
-            sendFlush();
-        }
-    }
-
-    private void handleTunnelReply() throws IOException {
-        try {
-            final long id = recvVarint();
-            final boolean hasTimedOut = recvBoolean();
-
-            final TunnelCallbackHandlers handler = callbacks.useCallbackHandler(id);
-            if (hasTimedOut) {
-                handler.handleTunnelReply(id, 0, true);
-            } else {
-
-                final long bufferSize = recvVarint();
-                handler.handleTunnelReply(id, bufferSize, false);
-            }
-        }
-        catch (IllegalArgumentException e) {
-            System.err.printf("No %s found!%n", TunnelCallbackHandlers.class.getSimpleName());
-        }
-    }
-
-    private void sendTunnelData(final long tunnelId, @NotNull final byte[] message) throws IOException {
-        synchronized (socketOut) {
-            sendByte(OpCode.TUNNEL_DATA.getOrdinal());
-            sendVarint(tunnelId);
-            sendBinary(message);
-            sendFlush();
-        }
-    }
-
-    private void handleTunnelData() throws IOException {
-        try {
-            final long id = recvVarint();
-            final byte[] message = recvBinary();
-
-            final TunnelCallbackHandlers handler = callbacks.useCallbackHandler(id);
-            handler.handleTunnelData(id, message);
-        }
-        catch (IllegalArgumentException e) {
-            System.err.printf("No %s found!%n", TunnelCallbackHandlers.class.getSimpleName());
-        }
-    }
-
-    private void sendTunnelAck(final long tunnelId) throws IOException {
-        synchronized (socketOut) {
-            sendByte(OpCode.TUNNEL_ACK.getOrdinal());
-            sendVarint(tunnelId);
-            sendFlush();
-        }
-    }
-
-    private void handleTunnelAck() throws IOException {
-        try {
-            final long id = recvVarint();
-
-            final TunnelCallbackHandlers handler = callbacks.useCallbackHandler(id);
-            handler.handleTunnelAck(id);
-        }
-        catch (IllegalArgumentException e) {
-            System.err.printf("No %s found!%n", TunnelCallbackHandlers.class.getSimpleName());
-        }
-    }
-
-    private void sendTunnelClose(final long tunnelId) throws IOException {
-        synchronized (socketOut) {
-            sendByte(OpCode.TUNNEL_CLOSE.getOrdinal());
-            sendVarint(tunnelId);
-            sendFlush();
-        }
-    }
-
-    private void handleTunnelClose() throws IOException {
-        try {
-            final long id = recvVarint();
-
-            final TunnelCallbackHandlers handler = callbacks.useCallbackHandler(id);
-            handler.handleTunnelClose(id);
-        }
-        catch (IllegalArgumentException e) {
-            System.err.printf("No %s found!%n", TunnelCallbackHandlers.class.getSimpleName());
-        }
-    }
-
-    private void sendClose() throws IOException {
-        synchronized (socketOut) {
-            sendByte(OpCode.CLOSE.getOrdinal());
-            sendFlush();
-        }
     }
 
     public void addCallbackHandler(@NotNull final StaticCallbackHandler callbackHandler) {
         callbacks.addCallbackHandler(callbackHandler);
     }
 
-    protected Long addCallbackHandler(@NotNull final InstanceCallbackHandler callbackHandler) {
-        return callbacks.addCallbackHandler(callbackHandler);
+    private void init(@NotNull final String clusterName) throws IOException {
+        Validators.validateClusterName(clusterName);
+
+        protocol.send(OpCode.INIT, () -> {
+            protocol.sendString(VERSION);
+            protocol.sendString(clusterName);
+        });
     }
 
-    // TODO precessors; should be segregated
+    private void handleInit() throws IOException {
+        if (protocol.receiveByte() != OpCode.INIT.getOrdinal()) { throw new ProtocolException("Protocol violation"); }
+    }
+
+    @Override public void broadcast(@NotNull final String clusterName, @NotNull final byte[] message) throws IOException {
+        broadcastTransfer.broadcast(clusterName, message);
+    }
+
+    @Override public void request(@NotNull final String clusterName, @NotNull final byte[] request, final long timeOutMillis, RequestCallbackHandler callbackHandler) throws IOException {
+        requestTransfer.request(clusterName, request, timeOutMillis, callbackHandler);
+    }
+
+    @Override public void publish(@NotNull final String topic, @NotNull final byte[] message) throws IOException {
+        publishTransfer.publish(topic, message);
+    }
+
+    @Override public void subscribe(@NotNull final String topic, @NotNull final SubscriptionHandler handler) throws IOException {
+        subscribeTransfer.subscribe(topic, handler);
+    }
+
+    @Override public void unsubscribe(@NotNull final String topic, @NotNull final SubscriptionHandler handler) throws IOException {
+        subscribeTransfer.unsubscribe(topic, handler);
+    }
+
+    @Override public void tunnel(@NotNull final String clusterName, final long timeOutMillis, TunnelCallbackHandlers callbackHandlers) throws IOException {
+        tunnelTransfer.tunnel(clusterName, timeOutMillis, callbackHandlers);
+    }
 
     public void handle() throws Exception {
         // TODO handle all messages
         // Producer/consumer?
         try {
-            final OpCode opCode = OpCode.valueOf(recvByte());
+            final OpCode opCode = OpCode.valueOf(protocol.receiveByte());
             switch (opCode) {
                 case BROADCAST:
-                    handleBroadcast();
+                    broadcastTransfer.handle();
                     break;
 
                 case REQUEST:
-                    handleRequest();
+                    requestTransfer.handle();
                     break;
                 case REPLY:
-                    handleReply();
+                    replyTransfer.handle();
                     break;
 
                 case PUBLISH:
-                    handlePublish();
+                    publishTransfer.handle();
                     break;
 
                 case TUNNEL_REQUEST:
-                    handleTunnelRequest();
+                    tunnelTransfer.handleTunnelRequest();
                     break;
                 case TUNNEL_REPLY:
-                    handleTunnelReply();
+                    tunnelTransfer.handleTunnelReply();
                     break;
                 case TUNNEL_DATA:
-                    handleTunnelData();
+                    tunnelTransfer.handleTunnelData();
                     break;
                 case TUNNEL_ACK:
-                    handleTunnelAck();
+                    tunnelTransfer.handleTunnelAck();
                     break;
                 case TUNNEL_CLOSE:
-                    handleTunnelClose();
+                    tunnelTransfer.handleTunnelClose();
                     break;
 
                 case CLOSE:
@@ -390,8 +146,12 @@ public class Connection extends ProtocolBase implements ConnectionApi, CallbackR
         }
     }
 
+    private void sendClose() throws IOException {
+        protocol.send(OpCode.TUNNEL_CLOSE, () -> {});
+    }
+
     @Override public void close() throws Exception {
-        super.close();
+        protocol.close();
         socket.close();
     }
 }

@@ -1,8 +1,8 @@
-package com.karalabe.iris;
+package com.karalabe.iris.protocols;
 
 import org.jetbrains.annotations.NotNull;
 
-final class Validators {
+public final class Validators {
     private Validators() {}
 
     public static void validateClusterName(@NotNull final String clusterName) {

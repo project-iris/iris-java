@@ -1,6 +1,6 @@
 package com.karalabe.iris;
 
-import com.karalabe.iris.callback.handlers.BroadcastCallbackHandler;
+import com.karalabe.iris.protocols.broadcast.BroadcastCallbackHandler;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -15,8 +15,8 @@ import java.util.concurrent.TimeUnit;
 public class ConnectionTest {
     private static final int    IRIS_PORT      = 55555;
     private static final String CLUSTER_NAME   = "testClusterName";
-    public static final  byte[] MESSAGE_BYTES  = "testMessage".getBytes(StandardCharsets.UTF_8);
-    public static final  int    TIMEOUT_MILLIS = 10;
+    private static final byte[] MESSAGE_BYTES  = "testMessage".getBytes(StandardCharsets.UTF_8);
+    private static final int    TIMEOUT_MILLIS = 10;
 
     @Test public void connectIsWorking() throws Exception {
         try (final Socket ignored = new Socket(InetAddress.getLoopbackAddress(), IRIS_PORT)) {

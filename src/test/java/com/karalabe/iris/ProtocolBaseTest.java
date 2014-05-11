@@ -15,7 +15,7 @@ public class ProtocolBaseTest {
         testProtocol(protocol -> {
             for (final byte sentValue : Arrays.asList(Byte.MIN_VALUE, (byte) 0, Byte.MAX_VALUE)) {
                 protocol.sendByte(sentValue);
-                Assert.assertEquals(sentValue, protocol.recvByte());
+                Assert.assertEquals(sentValue, protocol.receiveByte());
             }
         });
     }
@@ -24,7 +24,7 @@ public class ProtocolBaseTest {
         testProtocol(protocol -> {
             for (final boolean sentValue : Arrays.asList(true, false)) {
                 protocol.sendBoolean(sentValue);
-                Assert.assertEquals(sentValue, protocol.recvBoolean());
+                Assert.assertEquals(sentValue, protocol.receiveBoolean());
             }
         });
     }
@@ -33,7 +33,7 @@ public class ProtocolBaseTest {
         testProtocol(protocol -> {
             for (final long sentValue : Arrays.asList(0L, 127L, 128L, 2560L, 1894L, 3141592653L, (long) Byte.MAX_VALUE, (long) Short.MAX_VALUE, (long) Integer.MAX_VALUE/*, Long.MAX_VALUE*/)) {
                 protocol.sendVarint(sentValue);
-                Assert.assertEquals(sentValue, protocol.recvVarint());
+                Assert.assertEquals(sentValue, protocol.receiveVarint());
             }
         });
     }
@@ -43,7 +43,7 @@ public class ProtocolBaseTest {
             for (final String sentValue : Arrays.asList("", "a", "abcdefg", Arrays.toString(new Exception().getStackTrace()).substring(0, 1000))) {
                 final byte[] bytes = sentValue.getBytes(StandardCharsets.UTF_8);
                 protocol.sendBinary(bytes);
-                Assert.assertArrayEquals(bytes, protocol.recvBinary());
+                Assert.assertArrayEquals(bytes, protocol.receiveBinary());
             }
         });
     }
@@ -52,7 +52,7 @@ public class ProtocolBaseTest {
         testProtocol(protocol -> {
             for (final String sentValue : Arrays.asList("", "a", "abcdefg", Arrays.toString(new Exception().getStackTrace()).substring(0, 1000))) {
                 protocol.sendString(sentValue);
-                Assert.assertEquals(sentValue, protocol.recvString());
+                Assert.assertEquals(sentValue, protocol.receiveString());
             }
         });
     }

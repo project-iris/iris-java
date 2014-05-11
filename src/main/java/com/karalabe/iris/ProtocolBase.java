@@ -22,19 +22,47 @@ public class ProtocolBase implements AutoCloseable {
         this.socketOut = new DataOutputStream(socketOut);
     }
 
-    protected void sendByte(final byte data) throws IOException {
+    @FunctionalInterface public interface Executable {
+        void run() throws IOException;
+    }
+
+    public void send(OpCode opCode, Executable executable) throws IOException {
+        synchronized (socketOut) {
+            sendByte(opCode.getOrdinal());
+            executable.run();
+            sendFlush();
+        }
+    }
+
+    public void sendByte(final byte data) throws IOException {
         socketOut.writeByte(data);
     }
 
-    protected byte recvByte() throws IOException {
+    public byte receiveByte() throws IOException {
         return socketIn.readByte();
     }
 
-    protected void sendBoolean(final boolean data) throws IOException {
+    public void sendBoolean(final boolean data) throws IOException {
         sendByte((byte) (data ? 1 : 0));
     }
 
-    protected void sendVarint(final long data) throws IOException {
+    public boolean receiveBoolean() throws IOException {
+        final byte data = receiveByte();
+        switch (data) {
+            case 0:
+                return false;
+            case 1:
+                return true;
+            default:
+                throw new ProtocolException("Boolean expected, received: " + data);
+        }
+    }
+
+    private boolean hasNextChunk(final long chunk) {
+        return (chunk & ~VAR_INT_CHUNK_BYTE_MASK) != 0;
+    }
+
+    public void sendVarint(final long data) throws IOException {
         long toSend = data;
         while (true) {
             final long chunk = (toSend & VAR_INT_CHUNK_BYTE_MASK);
@@ -48,17 +76,13 @@ public class ProtocolBase implements AutoCloseable {
         }
     }
 
-    private boolean hasNextChunk(final long chunk) {
-        return (chunk & ~VAR_INT_CHUNK_BYTE_MASK) != 0;
-    }
-
-    protected long recvVarint() throws IOException {
+    public long receiveVarint() throws IOException {
         long result = 0;
 
         short nextByte;
         byte shiftAmount = 0;
         do {
-            nextByte = recvByte();
+            nextByte = receiveByte();
             final long chunk = (nextByte & VAR_INT_CHUNK_BYTE_MASK);
             result |= (chunk << shiftAmount);
 
@@ -69,38 +93,26 @@ public class ProtocolBase implements AutoCloseable {
         return result;
     }
 
-    protected boolean recvBoolean() throws IOException {
-        final byte data = recvByte();
-        switch (data) {
-            case 0:
-                return false;
-            case 1:
-                return true;
-            default:
-                throw new ProtocolException("Boolean expected, received: " + data);
-        }
-    }
-
-    protected void sendBinary(@NotNull final byte[] data) throws IOException {
+    public void sendBinary(@NotNull final byte[] data) throws IOException {
         sendVarint(data.length);
         socketOut.write(data);
     }
 
-    protected byte[] recvBinary() throws IOException {
-        final byte[] result = new byte[(int) recvVarint()];
+    public byte[] receiveBinary() throws IOException {
+        final byte[] result = new byte[(int) receiveVarint()];
         socketIn.readFully(result);
         return result;
     }
 
-    protected void sendString(@NotNull final String data) throws IOException {
+    public void sendString(@NotNull final String data) throws IOException {
         sendBinary(data.getBytes(DEFAULT_CHARSET));
     }
 
-    protected String recvString() throws IOException {
-        return new String(recvBinary(), DEFAULT_CHARSET);
+    public String receiveString() throws IOException {
+        return new String(receiveBinary(), DEFAULT_CHARSET);
     }
 
-    protected void sendFlush() throws IOException {
+    public void sendFlush() throws IOException {
         socketOut.flush();
     }
 
