@@ -8,19 +8,23 @@ import java.util.stream.Stream;
  */
 @SuppressWarnings("MagicNumber") public enum OpCode {
     /*@formatter:off*/
-    INIT(0),           /** Connection initialization */
-    BROADCAST(1),      /** Application broadcast */
-    REQUEST(2),        /** Application request */
-    REPLY(3),          /** Application reply */
-    SUBSCRIBE(4),      /** Topic subscription */
-    PUBLISH(5),        /** Topic publish */
-    UNSUBSCRIBE(6),    /** Topic subscription removal */
-    CLOSE(7),          /** Connection closing */
-    TUNNEL_REQUEST(8), /** Tunnel building request */
-    TUNNEL_REPLY(9),   /** Tunnel building reply */
-    TUNNEL_DATA(10),   /** Tunnel data transfer */
-    TUNNEL_ACK(11),    /** Tunnel data acknowledgment */
-    TUNNEL_CLOSE(12);  /** Tunnel closing */
+    INIT (0),         /** Connection initialization */
+    DENY (1),         /** Connection ???*/
+    CLOSE(2),         /** Connection closing */
+
+    BROADCAST(3),     /** Application broadcast */
+    REQUEST  (4),     /** Application request */
+    REPLY    (5),     /** Application reply */
+
+    SUBSCRIBE  (6),   /** Topic subscription */
+    UNSUBSCRIBE(7),   /** Topic subscription removal */
+    PUBLISH    (8),   /** Topic publish */
+
+    TUN_BUILD   (9),  /** Tunnel ???*/
+    TUN_CONFIRM (10), /** Tunnel ???*/
+    TUN_ALLOW   (11), /** Tunnel ???*/
+    TUN_TRANSFER(12), /** Tunnel ???*/
+    TUN_CLOSE   (13); /** Tunnel closing */
     /*@formatter:on*/
 
     private final byte ordinal;

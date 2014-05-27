@@ -17,7 +17,7 @@ public class TunnelTransfer extends TransferBase implements TunnelApi {
 
         final int bufferSize = 0; // TODO
         final long id = addCallbackHandler(callbackHandlers);
-        protocol.send(OpCode.TUNNEL_REQUEST, () -> {
+        protocol.send(OpCode.TUN_BUILD, () -> {
             protocol.sendVarint(id);
             protocol.sendString(clusterName);
             protocol.sendVarint(bufferSize); // TODO buf?
@@ -25,7 +25,7 @@ public class TunnelTransfer extends TransferBase implements TunnelApi {
         });
     }
 
-    public void handleTunnelRequest() throws IOException {
+    public void handleTunnelBuild() throws IOException {
         try {
             final long id = protocol.receiveVarint(); // TODO tmpId?
             final long bufferSize = protocol.receiveVarint();
@@ -38,15 +38,15 @@ public class TunnelTransfer extends TransferBase implements TunnelApi {
         }
     }
 
-    public void sendTunnelReply(final long tempId, final long tunnelId, final long bufferSize) throws IOException {
-        protocol.send(OpCode.TUNNEL_REPLY, () -> {
+    public void sendTunnelConfirm(final long tempId, final long tunnelId, final long bufferSize) throws IOException {
+        protocol.send(OpCode.TUN_CONFIRM, () -> {
             protocol.sendVarint(tempId);     // TODO huh?
             protocol.sendVarint(tunnelId);
             protocol.sendVarint(bufferSize); // TODO buf?
         });
     }
 
-    public void handleTunnelReply() throws IOException {
+    public void handleTunnelConfirm() throws IOException {
         try {
             final long id = protocol.receiveVarint();
             final boolean hasTimedOut = protocol.receiveBoolean();
@@ -65,14 +65,14 @@ public class TunnelTransfer extends TransferBase implements TunnelApi {
         }
     }
 
-    public void sendTunnelData(final long tunnelId, @NotNull final byte[] message) throws IOException {
-        protocol.send(OpCode.TUNNEL_DATA, () -> {
+    public void sendTunnelTransfer(final long tunnelId, @NotNull final byte[] message) throws IOException {
+        protocol.send(OpCode.TUN_TRANSFER, () -> {
             protocol.sendVarint(tunnelId);
             protocol.sendBinary(message);
         });
     }
 
-    public void handleTunnelData() throws IOException {
+    public void handleTunnelTransfer() throws IOException {
         try {
             final long id = protocol.receiveVarint();
             final byte[] message = protocol.receiveBinary();
@@ -85,13 +85,11 @@ public class TunnelTransfer extends TransferBase implements TunnelApi {
         }
     }
 
-    public void sendTunnelAck(final long tunnelId) throws IOException {
-        protocol.send(OpCode.TUNNEL_ACK, () -> {
-            protocol.sendVarint(tunnelId);
-        });
+    public void sendTunnelAllow(final long tunnelId) throws IOException {
+        protocol.send(OpCode.TUN_ALLOW, () -> protocol.sendVarint(tunnelId));
     }
 
-    public void handleTunnelAck() throws IOException {
+    public void handleTunnelAllow() throws IOException {
         try {
             final long id = protocol.receiveVarint();
 
@@ -104,9 +102,7 @@ public class TunnelTransfer extends TransferBase implements TunnelApi {
     }
 
     public void sendTunnelClose(final long tunnelId) throws IOException {
-        protocol.send(OpCode.TUNNEL_CLOSE, () -> {
-            protocol.sendVarint(tunnelId);
-        });
+        protocol.send(OpCode.TUN_CLOSE, () -> protocol.sendVarint(tunnelId));
     }
 
     public void handleTunnelClose() throws IOException {

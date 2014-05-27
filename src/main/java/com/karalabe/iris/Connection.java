@@ -25,7 +25,9 @@ import java.net.Socket;
  * Message relay between the local app and the local iris node.
  **/
 public class Connection implements CallbackRegistry, AutoCloseable, SubscribeApi, PublishApi, TunnelApi, BroadcastApi, RequestApi {
-    private static final String VERSION = "v1.0";
+    private static final String PROTOCOL_VERSION  = "v1-draft2";
+    private static final String CLIENT_SIDE_MAGIC = "iris-client-magic";
+    private static final String RELAY_SIDE_MAGIC  = "iris-relay-magic";
 
     private final Socket                  socket;  // Network connection to the iris node
     private final ProtocolBase            protocol;
@@ -63,7 +65,7 @@ public class Connection implements CallbackRegistry, AutoCloseable, SubscribeApi
         Validators.validateClusterName(clusterName);
 
         protocol.send(OpCode.INIT, () -> {
-            protocol.sendString(VERSION);
+            protocol.sendString(PROTOCOL_VERSION);
             protocol.sendString(clusterName);
         });
     }
@@ -117,19 +119,19 @@ public class Connection implements CallbackRegistry, AutoCloseable, SubscribeApi
                     publishTransfer.handle();
                     break;
 
-                case TUNNEL_REQUEST:
-                    tunnelTransfer.handleTunnelRequest();
+                case TUN_BUILD:
+                    tunnelTransfer.handleTunnelBuild();
                     break;
-                case TUNNEL_REPLY:
-                    tunnelTransfer.handleTunnelReply();
+                case TUN_CONFIRM:
+                    tunnelTransfer.handleTunnelConfirm();
                     break;
-                case TUNNEL_DATA:
-                    tunnelTransfer.handleTunnelData();
+                case TUN_ALLOW:
+                    tunnelTransfer.handleTunnelAllow();
                     break;
-                case TUNNEL_ACK:
-                    tunnelTransfer.handleTunnelAck();
+                case TUN_TRANSFER:
+                    tunnelTransfer.handleTunnelTransfer();
                     break;
-                case TUNNEL_CLOSE:
+                case TUN_CLOSE:
                     tunnelTransfer.handleTunnelClose();
                     break;
 
@@ -147,7 +149,7 @@ public class Connection implements CallbackRegistry, AutoCloseable, SubscribeApi
     }
 
     private void sendClose() throws IOException {
-        protocol.send(OpCode.TUNNEL_CLOSE, () -> {});
+        protocol.send(OpCode.TUN_CLOSE, () -> {});
     }
 
     @Override public void close() throws Exception {

@@ -10,9 +10,7 @@ public class CallbackHandlerRegistry implements CallbackRegistry {
     private final Cache<Object, StaticCallbackHandler>   staticCallbacks   = CacheBuilder.newBuilder().build();
     private final Cache<Object, InstanceCallbackHandler> instanceCallbacks = CacheBuilder.newBuilder()
                                                                                  .expireAfterWrite(1, TimeUnit.MINUTES) // TODO make configurable
-                                                                                 .removalListener(notification -> {
-                                                                                     System.out.printf("Removed %s:%s from cache!%n", notification.getKey(), notification.getValue());
-                                                                                 })
+                                                                                 .removalListener(notification -> System.out.printf("Removed %s:%s from cache!%n", notification.getKey(), notification.getValue()))
                                                                                  .build();
 
     public void addCallbackHandler(@NotNull StaticCallbackHandler callbackHandler) {

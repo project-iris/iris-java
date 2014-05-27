@@ -36,20 +36,16 @@ public class ConnectionTest {
 
     @Test public void broadcastIsWorking() throws Exception {
         testConnection(connection -> {
-            connection.addCallbackHandler((BroadcastCallbackHandler) receivedMessage -> {
-                Assert.assertArrayEquals("Wrong message received!", MESSAGE_BYTES, receivedMessage);
-            });
+            connection.addCallbackHandler((BroadcastCallbackHandler) receivedMessage -> Assert.assertArrayEquals("Wrong message received!", MESSAGE_BYTES, receivedMessage));
             connection.broadcast(CLUSTER_NAME, MESSAGE_BYTES);
         });
     }
 
     @Test public void requestResponseIsWorking() throws Exception {
-        testConnection(connection -> {
-            connection.request(CLUSTER_NAME, MESSAGE_BYTES, TIMEOUT_MILLIS, (requestId, receivedMessage) -> {
-                Assert.assertEquals("Wrong requestId received!", 0L, requestId);
-                Assert.assertArrayEquals("Wrong message received!", MESSAGE_BYTES, receivedMessage);
-            });
-        });
+        testConnection(connection -> connection.request(CLUSTER_NAME, MESSAGE_BYTES, TIMEOUT_MILLIS, (requestId, receivedMessage) -> {
+            Assert.assertEquals("Wrong requestId received!", 0L, requestId);
+            Assert.assertArrayEquals("Wrong message received!", MESSAGE_BYTES, receivedMessage);
+        }));
     }
 
     private static void testConnection(TestConsumer testConsumer) throws Exception {
