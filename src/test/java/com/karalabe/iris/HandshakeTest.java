@@ -4,13 +4,9 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 
 @SuppressWarnings({"resource", "JUnitTestNG", "ProhibitedExceptionDeclared", "UnqualifiedStaticUsage"})
 public class HandshakeTest {
-    private static final byte[] MESSAGE_BYTES  = "testMessage".getBytes(StandardCharsets.UTF_8);
-    private static final int    TIMEOUT_MILLIS = 10;
-
     @Test public void connection() throws Exception {
         try (final Connection ignored = new Connection(Config.RELAY_PORT)) {
         }
