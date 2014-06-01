@@ -7,7 +7,7 @@ import com.karalabe.iris.protocols.Tunnel.TunnelApi;
 import com.karalabe.iris.protocols.Tunnel.TunnelCallbackHandlers;
 import com.karalabe.iris.protocols.Tunnel.TunnelTransfer;
 import com.karalabe.iris.protocols.Validators;
-import com.karalabe.iris.protocols.broadcast.BroadcastApi;
+import com.karalabe.iris.protocols.broadcast.BroadcastAPI;
 import com.karalabe.iris.protocols.broadcast.BroadcastTransfer;
 import com.karalabe.iris.protocols.publish_subscribe.*;
 import com.karalabe.iris.protocols.request_reply.ReplyTransfer;
@@ -24,7 +24,7 @@ import java.net.Socket;
 /*
  * Message relay between the local app and the local iris node.
  **/
-public class Connection implements CallbackRegistry, AutoCloseable, SubscribeApi, PublishApi, TunnelApi, BroadcastApi, RequestApi {
+public class Connection implements CallbackRegistry, AutoCloseable, SubscribeApi, PublishApi, TunnelApi, BroadcastAPI, RequestApi {
     private static final String PROTOCOL_VERSION = "v1-draft2";
     private static final String CLIENT_MAGIC     = "iris-client-magic";
     private static final String RELAY_MAGIC      = "iris-relay-magic";
@@ -56,6 +56,8 @@ public class Connection implements CallbackRegistry, AutoCloseable, SubscribeApi
         init(clusterName);
         handleInit();
     }
+
+    public Connection(final int relayPort) {}
 
     public void addCallbackHandler(@NotNull final StaticCallbackHandler callbackHandler) {
         callbacks.addCallbackHandler(callbackHandler);
