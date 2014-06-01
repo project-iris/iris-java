@@ -30,7 +30,7 @@ public class ProtocolBase implements AutoCloseable {
         synchronized (socketOut) {
             sendByte(opCode.getOrdinal());
             executable.run();
-            sendFlush();
+            socketOut.flush();
         }
     }
 
@@ -110,10 +110,6 @@ public class ProtocolBase implements AutoCloseable {
 
     public String receiveString() throws IOException {
         return new String(receiveBinary(), DEFAULT_CHARSET);
-    }
-
-    public void sendFlush() throws IOException {
-        socketOut.flush();
     }
 
     @Override public void close() throws Exception {

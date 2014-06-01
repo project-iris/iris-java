@@ -8,23 +8,23 @@ import java.util.stream.Stream;
  */
 @SuppressWarnings("MagicNumber") public enum OpCode {
     /*@formatter:off*/
-    INIT (0),         /** Connection initialization */
-    DENY (1),         /** Connection ???*/
-    CLOSE(2),         /** Connection closing */
+    INIT (0x00),           // Out: connection initiation            | In: connection acceptance
+    DENY (0x01),           // Out: <never sent>                     | In: connection refusal
+    CLOSE(0x02),           // Out: connection tear-down initiation  | In: connection tear-down notification
 
-    BROADCAST(3),     /** Application broadcast */
-    REQUEST  (4),     /** Application request */
-    REPLY    (5),     /** Application reply */
+    BROADCAST(0x03),       // Out: application broadcast initiation | In: application broadcast delivery
+    REQUEST  (0x04),       // Out: application request initiation   | In: application request delivery
+    REPLY    (0x05),       // Out: application reply initiation     | In: application reply delivery
 
-    SUBSCRIBE  (6),   /** Topic subscription */
-    UNSUBSCRIBE(7),   /** Topic subscription removal */
-    PUBLISH    (8),   /** Topic publish */
+    SUBSCRIBE  (0x06),     // Out: topic subscription               | In: <never received>
+    UNSUBSCRIBE(0x07),     // Out: topic subscription removal       | In: <never received>
+    PUBLISH    (0x08),     // Out: topic event publish              | In: topic event delivery
 
-    TUN_BUILD   (9),  /** Tunnel ???*/
-    TUN_CONFIRM (10), /** Tunnel ???*/
-    TUN_ALLOW   (11), /** Tunnel ???*/
-    TUN_TRANSFER(12), /** Tunnel ???*/
-    TUN_CLOSE   (13); /** Tunnel closing */
+    TUNNEL_BUILD   (0x09), // Out: tunnel construction request      | In: tunnel initiation
+    TUNNEL_CONFIRM (0x0a), // Out: tunnel confirmation              | In: tunnel construction result
+    TUNNEL_ALLOW   (0x0b), // Out: tunnel transfer allowance        | In: <same as out>
+    TUNNEL_TRANSFER(0x0c), // Out: tunnel data exchange             | In: <same as out>
+    TUNNEL_CLOSE   (0x0d); // Out: tunnel termination request       | In: tunnel termination notification
     /*@formatter:on*/
 
     private final byte ordinal;

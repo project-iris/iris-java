@@ -17,7 +17,7 @@ public class TunnelTransfer extends TransferBase implements TunnelApi {
 
         final int bufferSize = 0; // TODO
         final long id = addCallbackHandler(callbackHandlers);
-        protocol.send(OpCode.TUN_BUILD, () -> {
+        protocol.send(OpCode.TUNNEL_BUILD, () -> {
             protocol.sendVarint(id);
             protocol.sendString(clusterName);
             protocol.sendVarint(bufferSize); // TODO buf?
@@ -39,7 +39,7 @@ public class TunnelTransfer extends TransferBase implements TunnelApi {
     }
 
     public void sendTunnelConfirm(final long tempId, final long tunnelId, final long bufferSize) throws IOException {
-        protocol.send(OpCode.TUN_CONFIRM, () -> {
+        protocol.send(OpCode.TUNNEL_CONFIRM, () -> {
             protocol.sendVarint(tempId);     // TODO huh?
             protocol.sendVarint(tunnelId);
             protocol.sendVarint(bufferSize); // TODO buf?
@@ -66,7 +66,7 @@ public class TunnelTransfer extends TransferBase implements TunnelApi {
     }
 
     public void sendTunnelTransfer(final long tunnelId, @NotNull final byte[] message) throws IOException {
-        protocol.send(OpCode.TUN_TRANSFER, () -> {
+        protocol.send(OpCode.TUNNEL_TRANSFER, () -> {
             protocol.sendVarint(tunnelId);
             protocol.sendBinary(message);
         });
@@ -86,7 +86,7 @@ public class TunnelTransfer extends TransferBase implements TunnelApi {
     }
 
     public void sendTunnelAllow(final long tunnelId) throws IOException {
-        protocol.send(OpCode.TUN_ALLOW, () -> protocol.sendVarint(tunnelId));
+        protocol.send(OpCode.TUNNEL_ALLOW, () -> protocol.sendVarint(tunnelId));
     }
 
     public void handleTunnelAllow() throws IOException {
@@ -102,7 +102,7 @@ public class TunnelTransfer extends TransferBase implements TunnelApi {
     }
 
     public void sendTunnelClose(final long tunnelId) throws IOException {
-        protocol.send(OpCode.TUN_CLOSE, () -> protocol.sendVarint(tunnelId));
+        protocol.send(OpCode.TUNNEL_CLOSE, () -> protocol.sendVarint(tunnelId));
     }
 
     public void handleTunnelClose() throws IOException {

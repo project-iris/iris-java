@@ -25,9 +25,9 @@ import java.net.Socket;
  * Message relay between the local app and the local iris node.
  **/
 public class Connection implements CallbackRegistry, AutoCloseable, SubscribeApi, PublishApi, TunnelApi, BroadcastApi, RequestApi {
-    private static final String PROTOCOL_VERSION  = "v1-draft2";
-    private static final String CLIENT_SIDE_MAGIC = "iris-client-magic";
-    private static final String RELAY_SIDE_MAGIC  = "iris-relay-magic";
+    private static final String PROTOCOL_VERSION = "v1-draft2";
+    private static final String CLIENT_MAGIC     = "iris-client-magic";
+    private static final String RELAY_MAGIC      = "iris-relay-magic";
 
     private final Socket                  socket;  // Network connection to the iris node
     private final ProtocolBase            protocol;
@@ -65,13 +65,38 @@ public class Connection implements CallbackRegistry, AutoCloseable, SubscribeApi
         Validators.validateClusterName(clusterName);
 
         protocol.send(OpCode.INIT, () -> {
+            protocol.sendString(CLIENT_MAGIC);
             protocol.sendString(PROTOCOL_VERSION);
             protocol.sendString(clusterName);
         });
     }
 
-    private void handleInit() throws IOException {
-        if (protocol.receiveByte() != OpCode.INIT.getOrdinal()) { throw new ProtocolException("Protocol violation"); }
+    private String handleInit() throws IOException {
+        final OpCode opCode = OpCode.valueOf(protocol.receiveByte());
+
+        switch (opCode) {
+            case INIT: {
+                verifyMagic();
+
+                final String version = protocol.receiveString();
+                return version;
+            }
+
+            case DENY: {
+                verifyMagic();
+
+                final String reason = protocol.receiveString();
+                throw new ProtocolException(String.format("Connection denied: %s", reason));
+            }
+
+            default:
+                throw new ProtocolException(String.format("Protocol violation: invalid init response opcode: %s", opCode));
+        }
+    }
+
+    private void verifyMagic() throws IOException {
+        final String relayMagic = protocol.receiveString();
+        if (!RELAY_MAGIC.equals(relayMagic)) { throw new ProtocolException(String.format("Protocol violation: invalid relay magic: %s", relayMagic)); }
     }
 
     @Override public void broadcast(@NotNull final String clusterName, @NotNull final byte[] message) throws IOException {
@@ -119,19 +144,19 @@ public class Connection implements CallbackRegistry, AutoCloseable, SubscribeApi
                     publishTransfer.handle();
                     break;
 
-                case TUN_BUILD:
+                case TUNNEL_BUILD:
                     tunnelTransfer.handleTunnelBuild();
                     break;
-                case TUN_CONFIRM:
+                case TUNNEL_CONFIRM:
                     tunnelTransfer.handleTunnelConfirm();
                     break;
-                case TUN_ALLOW:
+                case TUNNEL_ALLOW:
                     tunnelTransfer.handleTunnelAllow();
                     break;
-                case TUN_TRANSFER:
+                case TUNNEL_TRANSFER:
                     tunnelTransfer.handleTunnelTransfer();
                     break;
-                case TUN_CLOSE:
+                case TUNNEL_CLOSE:
                     tunnelTransfer.handleTunnelClose();
                     break;
 
@@ -139,7 +164,6 @@ public class Connection implements CallbackRegistry, AutoCloseable, SubscribeApi
                     return;
 
                 default:
-                case INIT:
                     throw new IllegalStateException(String.format("Illegal %s received: '%s'!", OpCode.class.getSimpleName(), opCode));
             }
         }
@@ -149,7 +173,7 @@ public class Connection implements CallbackRegistry, AutoCloseable, SubscribeApi
     }
 
     private void sendClose() throws IOException {
-        protocol.send(OpCode.TUN_CLOSE, () -> {});
+        protocol.send(OpCode.TUNNEL_CLOSE, () -> {});
     }
 
     @Override public void close() throws Exception {
