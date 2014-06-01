@@ -26,45 +26,4 @@ public class HandshakeTest {
             Assert.fail(e.getMessage());
         }
     }
-/*
-    @Test public void broadcastIsWorking() throws Exception {
-        testConnection(connection -> {
-            connection.addCallbackHandler((BroadcastCallbackHandler) receivedMessage -> Assert.assertArrayEquals("Wrong message received!", MESSAGE_BYTES, receivedMessage));
-            connection.broadcast(CLUSTER_NAME, MESSAGE_BYTES);
-        });
-    }
-
-    @Test public void requestResponseIsWorking() throws Exception {
-        testConnection(connection -> connection.request(CLUSTER_NAME, MESSAGE_BYTES, TIMEOUT_MILLIS, (requestId, receivedMessage) -> {
-            Assert.assertEquals("Wrong requestId received!", 0L, requestId);
-            Assert.assertArrayEquals("Wrong message received!", MESSAGE_BYTES, receivedMessage);
-        }));
-    }
-
-    private static void testConnection(TestConsumer testConsumer) throws Exception {
-
-        try (final Connection connection = new Connection(IRIS_PORT)) {
-            final Semaphore semaphore = new Semaphore(1);
-            semaphore.acquire();
-
-            testConsumer.accept(connection, semaphore);
-
-            Assert.assertTrue("ConnectionHandler was never called!", semaphore.tryAcquire(TIMEOUT_MILLIS, TimeUnit.MILLISECONDS));
-        }
-        catch (IOException e) {
-            Assert.fail(e.getMessage());
-        }
-    }
-
-    @FunctionalInterface
-    public interface TestConsumer {
-        void accept(final Connection connection) throws Exception;
-
-        default void accept(final Connection connection, final Semaphore semaphore) throws Exception {
-            accept(connection);
-            connection.handle(); // TODO move this
-
-            semaphore.release();
-        }
-    }*/
 }
