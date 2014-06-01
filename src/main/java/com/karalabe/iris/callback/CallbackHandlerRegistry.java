@@ -1,17 +1,13 @@
 package com.karalabe.iris.callback;
 
-import com.google.common.cache.Cache;
-import com.google.common.cache.CacheBuilder;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.concurrent.TimeUnit;
+import java.util.HashMap;
+import java.util.Map;
 
 public class CallbackHandlerRegistry implements CallbackRegistry {
-    private final Cache<Object, StaticCallbackHandler>   staticCallbacks   = CacheBuilder.newBuilder().build();
-    private final Cache<Object, InstanceCallbackHandler> instanceCallbacks = CacheBuilder.newBuilder()
-                                                                                 .expireAfterWrite(1, TimeUnit.MINUTES) // TODO make configurable
-                                                                                 .removalListener(notification -> System.out.printf("Removed %s:%s from cache!%n", notification.getKey(), notification.getValue()))
-                                                                                 .build();
+    private final Map<Object, StaticCallbackHandler>   staticCallbacks   = new HashMap<>();
+    private final Map<Object, InstanceCallbackHandler> instanceCallbacks = new HashMap<>();
 
     public void addCallbackHandler(@NotNull StaticCallbackHandler callbackHandler) {
         staticCallbacks.put(callbackHandler.getId(), callbackHandler);
@@ -24,11 +20,11 @@ public class CallbackHandlerRegistry implements CallbackRegistry {
     }
 
     @NotNull public <T extends CallbackHandler> T useCallbackHandler(@NotNull Object id) throws IllegalArgumentException {
-        CallbackHandler callbackHandler = instanceCallbacks.getIfPresent(id);
+        CallbackHandler callbackHandler = instanceCallbacks.get(id);
         if (callbackHandler != null) {
-            instanceCallbacks.invalidate(id);
+            instanceCallbacks.remove(id);
         } else {
-            callbackHandler = staticCallbacks.getIfPresent(id);
+            callbackHandler = staticCallbacks.get(id);
         }
 
         if (callbackHandler == null) { throw new IllegalArgumentException(String.format("No handler found for '%s'!", id)); }
