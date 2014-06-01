@@ -13,7 +13,7 @@ public class TunnelTransfer extends TransferBase implements TunnelApi {
     public TunnelTransfer(@NotNull final ProtocolBase protocol, @NotNull final CallbackHandlerRegistry callbacks) { super(protocol, callbacks); }
 
     @Override public void tunnel(@NotNull final String clusterName, final long timeOutMillis, TunnelCallbackHandlers callbackHandlers) throws IOException {
-        Validators.validateClusterName(clusterName);
+        Validators.validateRemoteClusterName(clusterName);
 
         final int bufferSize = 0; // TODO
         final long id = addCallbackHandler(callbackHandlers);

@@ -13,7 +13,7 @@ public class BroadcastTransfer extends TransferBase implements BroadcastAPI {
     public BroadcastTransfer(@NotNull final ProtocolBase protocol, @NotNull final CallbackHandlerRegistry callbacks) { super(protocol, callbacks); }
 
     @Override public void broadcast(@NotNull final String clusterName, @NotNull final byte[] message) throws IOException {
-        Validators.validateClusterName(clusterName);
+        Validators.validateRemoteClusterName(clusterName);
         Validators.validateMessage(message);
 
         protocol.send(OpCode.BROADCAST, () -> {

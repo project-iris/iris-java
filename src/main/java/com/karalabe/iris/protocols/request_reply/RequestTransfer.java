@@ -13,7 +13,7 @@ public class RequestTransfer extends TransferBase implements RequestApi {
     public RequestTransfer(@NotNull final ProtocolBase protocol, @NotNull final CallbackHandlerRegistry callbacks) { super(protocol, callbacks); }
 
     @Override public void request(@NotNull final String clusterName, @NotNull byte[] request, long timeOutMillis, RequestCallbackHandler callbackHandler) throws IOException {
-        Validators.validateClusterName(clusterName);
+        Validators.validateRemoteClusterName(clusterName);
         Validators.validateMessage(request);
 
         final Long requestId = addCallbackHandler(callbackHandler);

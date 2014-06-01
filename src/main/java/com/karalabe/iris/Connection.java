@@ -25,7 +25,7 @@ import java.net.Socket;
  * Message relay between the local app and the local iris node.
  **/
 public class Connection implements CallbackRegistry, AutoCloseable, SubscribeApi, PublishApi, TunnelApi, BroadcastAPI, RequestApi {
-    private static final String PROTOCOL_VERSION = "v1-draft2";
+    private static final String PROTOCOL_VERSION = "v1.0-draft2";
     private static final String CLIENT_MAGIC     = "iris-client-magic";
     private static final String RELAY_MAGIC      = "iris-relay-magic";
 
@@ -66,7 +66,7 @@ public class Connection implements CallbackRegistry, AutoCloseable, SubscribeApi
     }
 
     private void init(@NotNull final String clusterName) throws IOException {
-        Validators.validateClusterName(clusterName);
+        Validators.validateLocalClusterName(clusterName);
 
         protocol.send(OpCode.INIT, () -> {
             protocol.sendString(CLIENT_MAGIC);

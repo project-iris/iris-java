@@ -5,8 +5,16 @@ import org.jetbrains.annotations.NotNull;
 public final class Validators {
     private Validators() {}
 
-    public static void validateClusterName(@NotNull final String clusterName) {
-        if (clusterName.isEmpty()) { throw new IllegalArgumentException("Empty cluster name!"); }
+    public static void validateLocalClusterName(@NotNull final String clusterName) {
+        if (clusterName.contains(":")) {
+            throw new IllegalArgumentException("Service name cannot contain colon!");
+        }
+    }
+
+    public static void validateRemoteClusterName(@NotNull final String clusterName) {
+        if (clusterName.isEmpty()) {
+            throw new IllegalArgumentException("Empty cluster name!");
+        }
     }
 
     public static void validateTopic(@NotNull final String topic) {

@@ -1,39 +1,32 @@
 package com.karalabe.iris;
 
-import com.karalabe.iris.protocols.broadcast.BroadcastCallbackHandler;
 import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.IOException;
-import java.net.InetAddress;
-import java.net.Socket;
 import java.nio.charset.StandardCharsets;
-import java.util.concurrent.Semaphore;
-import java.util.concurrent.TimeUnit;
 
 @SuppressWarnings({"resource", "JUnitTestNG", "ProhibitedExceptionDeclared", "UnqualifiedStaticUsage"})
-public class ConnectionTest {
-    private static final int    IRIS_PORT      = 55555;
-    private static final String CLUSTER_NAME   = "testClusterName";
+public class HandshakeTest {
     private static final byte[] MESSAGE_BYTES  = "testMessage".getBytes(StandardCharsets.UTF_8);
     private static final int    TIMEOUT_MILLIS = 10;
 
-    @Test public void connectIsWorking() throws Exception {
-        try (final Socket ignored = new Socket(InetAddress.getLoopbackAddress(), IRIS_PORT)) {
-        }
-        catch (IOException ignored) {
-            Assert.fail();
-        }
-    }
-
-    @Test public void handshakeIsWorking() throws Exception {
-        try (final Connection ignored = new Connection(IRIS_PORT)) {
+    @Test public void connection() throws Exception {
+        try (final Connection ignored = new Connection(Config.RELAY_PORT)) {
         }
         catch (IOException e) {
             Assert.fail(e.getMessage());
         }
     }
 
+    @Test public void service() throws Exception {
+        try (final Service ignored = new Service(Config.RELAY_PORT, Config.CLUSTER_NAME, new ServiceHandler() {})) {
+        }
+        catch (IOException e) {
+            Assert.fail(e.getMessage());
+        }
+    }
+/*
     @Test public void broadcastIsWorking() throws Exception {
         testConnection(connection -> {
             connection.addCallbackHandler((BroadcastCallbackHandler) receivedMessage -> Assert.assertArrayEquals("Wrong message received!", MESSAGE_BYTES, receivedMessage));
@@ -73,5 +66,5 @@ public class ConnectionTest {
 
             semaphore.release();
         }
-    }
+    }*/
 }
