@@ -1,9 +1,9 @@
-package com.karalabe.iris.protocols.request_reply;
+package com.karalabe.iris.protocol.request_reply;
 
-import com.karalabe.iris.OpCode;
-import com.karalabe.iris.ProtocolBase;
+import com.karalabe.iris.protocol.OpCode;
+import com.karalabe.iris.protocol.ProtocolBase;
 import com.karalabe.iris.callback.CallbackHandlerRegistry;
-import com.karalabe.iris.protocols.TransferBase;
+import com.karalabe.iris.protocol.TransferBase;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.IOException;

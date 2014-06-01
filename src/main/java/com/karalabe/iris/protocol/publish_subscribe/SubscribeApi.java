@@ -1,4 +1,4 @@
-package com.karalabe.iris.protocols.publish_subscribe;
+package com.karalabe.iris.protocol.publish_subscribe;
 
 import com.karalabe.iris.TopicHandler;
 import com.karalabe.iris.TopicLimits;

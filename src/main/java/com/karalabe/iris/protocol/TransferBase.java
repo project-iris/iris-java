@@ -1,6 +1,5 @@
-package com.karalabe.iris.protocols;
+package com.karalabe.iris.protocol;
 
-import com.karalabe.iris.ProtocolBase;
 import com.karalabe.iris.callback.CallbackHandlerRegistry;
 import com.karalabe.iris.callback.InstanceCallbackHandler;
 import org.jetbrains.annotations.NotNull;

@@ -1,4 +1,4 @@
-package com.karalabe.iris.protocols.request_reply;
+package com.karalabe.iris.protocol.request_reply;
 
 import org.jetbrains.annotations.NotNull;
 

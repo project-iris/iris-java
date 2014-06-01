@@ -1,15 +1,14 @@
-package com.karalabe.iris.protocols.request_reply;
+package com.karalabe.iris.protocol.request_reply;
 
 import com.karalabe.iris.callback.CallbackHandler;
 import com.karalabe.iris.callback.InstanceCallbackHandler;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
 
 @FunctionalInterface
-public interface ReplyCallbackHandler extends InstanceCallbackHandler, CallbackHandler {
+public interface RequestCallbackHandler extends InstanceCallbackHandler, CallbackHandler {
     /* Handles a request (message), returning the reply that should be forwarded back to the caller.
      * If the method crashes, nothing is returned and the caller will eventually time out.*/
-    @NotNull byte[] handleEvent(long requestId, @Nullable byte[] reply) throws IOException;
+    void handleEvent(long requestId, @NotNull byte[] request) throws IOException;
 }

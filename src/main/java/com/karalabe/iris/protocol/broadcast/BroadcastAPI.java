@@ -1,4 +1,4 @@
-package com.karalabe.iris.protocols.broadcast;
+package com.karalabe.iris.protocol.broadcast;
 
 import org.jetbrains.annotations.NotNull;
 

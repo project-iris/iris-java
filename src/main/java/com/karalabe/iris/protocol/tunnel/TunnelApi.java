@@ -1,4 +1,4 @@
-package com.karalabe.iris.protocols.tunnel;
+package com.karalabe.iris.protocol.tunnel;
 
 import org.jetbrains.annotations.NotNull;
 

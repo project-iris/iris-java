@@ -1,4 +1,4 @@
-package com.karalabe.iris.protocols.tunnel;
+package com.karalabe.iris.protocol.tunnel;
 
 import com.karalabe.iris.callback.CallbackHandler;
 import com.karalabe.iris.callback.InstanceCallbackHandler;

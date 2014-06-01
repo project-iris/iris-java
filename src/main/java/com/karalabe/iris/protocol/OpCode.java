@@ -1,4 +1,4 @@
-package com.karalabe.iris;
+package com.karalabe.iris.protocol;
 
 import java.util.Arrays;
 import java.util.stream.Stream;

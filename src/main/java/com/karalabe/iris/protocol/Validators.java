@@ -1,4 +1,4 @@
-package com.karalabe.iris.protocols;
+package com.karalabe.iris.protocol;
 
 import org.jetbrains.annotations.NotNull;
 
