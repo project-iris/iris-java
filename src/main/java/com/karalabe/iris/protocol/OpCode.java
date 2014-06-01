@@ -1,11 +1,14 @@
+// Copyright (c) 2014 Project Iris. All rights reserved.
+//
+// The current language binding is an official support library of the Iris
+// cloud messaging framework, and as such, the same licensing terms apply.
+// For details please see http://iris.karalabe.com/downloads#License
 package com.karalabe.iris.protocol;
 
 import java.util.Arrays;
 import java.util.stream.Stream;
 
-/**
- * Internal enumeration for the packet types used.
- */
+// Relay protocol packet opcodes.
 @SuppressWarnings("MagicNumber") public enum OpCode {
     /*@formatter:off*/
     INIT (0x00),           // Out: connection initiation            | In: connection acceptance

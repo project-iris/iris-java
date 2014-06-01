@@ -16,7 +16,7 @@ public class HandshakeTest {
     }
 
     @Test public void service() throws Exception {
-        try (final Service ignored = new Service(Config.RELAY_PORT, Config.CLUSTER_NAME, new ServiceHandler() {}, null)) {
+        try (final Service ignored = new Service(Config.RELAY_PORT, Config.CLUSTER_NAME, new ServiceHandler() {})) {
         }
         catch (IOException e) {
             Assert.fail(e.getMessage());

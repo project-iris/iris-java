@@ -59,7 +59,7 @@ public class BroadcastTest {
             new Thread(() -> {
                 BroadcastTestHandler handler = new BroadcastTestHandler();
 
-                try (final Service serv = new Service(Config.RELAY_PORT, Config.CLUSTER_NAME, handler, null)) {
+                try (final Service serv = new Service(Config.RELAY_PORT, Config.CLUSTER_NAME, handler)) {
                     // Wait till all clients and servers connect
                     barrier.await(Config.PHASE_TIMEOUT, TimeUnit.SECONDS);
 

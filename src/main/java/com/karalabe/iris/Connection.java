@@ -3,6 +3,7 @@ package com.karalabe.iris;
 import com.karalabe.iris.callback.CallbackHandlerRegistry;
 import com.karalabe.iris.callback.CallbackRegistry;
 import com.karalabe.iris.callback.StaticCallbackHandler;
+import com.karalabe.iris.common.BoundedThreadPool;
 import com.karalabe.iris.protocol.OpCode;
 import com.karalabe.iris.protocol.ProtocolBase;
 import com.karalabe.iris.protocol.broadcast.BroadcastAPI;
@@ -37,6 +38,14 @@ public class Connection implements CallbackRegistry, AutoCloseable, SubscribeApi
     private final ProtocolBase            protocol;
     private final CallbackHandlerRegistry callbacks;
 
+    // Application layer fields
+    private final ServiceHandler handler;
+
+    // Quality of service fields
+    BoundedThreadPool broadcastWorkers;
+    BoundedThreadPool requestWorkers;
+
+    // Network layer fields
     private final BroadcastTransfer broadcastTransfer;
     private final RequestTransfer   requestTransfer;
     private final ReplyTransfer     replyTransfer;
@@ -53,6 +62,11 @@ public class Connection implements CallbackRegistry, AutoCloseable, SubscribeApi
         if (limits == null) {
             limits = new ServiceLimits();
         }
+
+        this.handler = handler;
+
+        this.broadcastWorkers = new BoundedThreadPool(limits.broadcastThreads, limits.broadcastMemory);
+        this.requestWorkers = new BoundedThreadPool(limits.requestThreads, limits.requestMemory);
 
         socket = new Socket(InetAddress.getLoopbackAddress(), port);
 

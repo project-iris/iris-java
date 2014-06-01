@@ -14,8 +14,14 @@ import java.io.IOException;
 public class Service implements AutoCloseable {
     private Connection conn; // Network connection to the local Iris relay
 
-    // Connects to the Iris network and registers a new service instance as a member
-    // of the specified service cluster.
+    // Connects to the Iris network and registers a new service instance as a member of the
+    // specified service cluster.
+    public Service(final int port, @NotNull final String cluster, @NotNull final ServiceHandler handler) throws IOException {
+        this(port, cluster, handler, null);
+    }
+
+    // Connects to the Iris network and registers a new service instance as a member of the
+    // specified service cluster, overriding the default quality of service limits.
     public Service(final int port, @NotNull final String cluster, @NotNull final ServiceHandler handler, final ServiceLimits limits) throws IOException {
         Validators.validateLocalClusterName(cluster);
 
