@@ -27,7 +27,7 @@ public class ConnectionTest {
     }
 
     @Test public void handshakeIsWorking() throws Exception {
-        try (final Connection ignored = new Connection(IRIS_PORT, CLUSTER_NAME)) {
+        try (final Connection ignored = new Connection(IRIS_PORT)) {
         }
         catch (IOException e) {
             Assert.fail(e.getMessage());
@@ -50,7 +50,7 @@ public class ConnectionTest {
 
     private static void testConnection(TestConsumer testConsumer) throws Exception {
 
-        try (final Connection connection = new Connection(IRIS_PORT, CLUSTER_NAME)) {
+        try (final Connection connection = new Connection(IRIS_PORT)) {
             final Semaphore semaphore = new Semaphore(1);
             semaphore.acquire();
 

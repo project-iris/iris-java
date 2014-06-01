@@ -40,7 +40,11 @@ public class Connection implements CallbackRegistry, AutoCloseable, SubscribeApi
     private final SubscribeTransfer subscribeTransfer;
     private final TunnelTransfer    tunnelTransfer;
 
-    public Connection(int port, @NotNull String clusterName) throws IOException {
+    public Connection(final int relayPort) throws IOException {
+        this(relayPort, "", null);
+    }
+
+    Connection(int port, @NotNull String clusterName, ServiceHandler handler) throws IOException {
         socket = new Socket(InetAddress.getLoopbackAddress(), port);
 
         protocol = new ProtocolBase(socket.getInputStream(), socket.getOutputStream());
@@ -56,8 +60,6 @@ public class Connection implements CallbackRegistry, AutoCloseable, SubscribeApi
         init(clusterName);
         handleInit();
     }
-
-    public Connection(final int relayPort) {}
 
     public void addCallbackHandler(@NotNull final StaticCallbackHandler callbackHandler) {
         callbacks.addCallbackHandler(callbackHandler);
