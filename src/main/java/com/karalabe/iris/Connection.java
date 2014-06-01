@@ -69,8 +69,6 @@ public class Connection implements CallbackRegistry, AutoCloseable, SubscribeApi
     }
 
     private void init(@NotNull final String clusterName) throws IOException {
-        Validators.validateLocalClusterName(clusterName);
-
         protocol.send(OpCode.INIT, () -> {
             protocol.sendString(CLIENT_MAGIC);
             protocol.sendString(PROTOCOL_VERSION);
