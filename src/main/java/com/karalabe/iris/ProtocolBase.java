@@ -112,7 +112,7 @@ public class ProtocolBase implements AutoCloseable {
         return new String(receiveBinary(), DEFAULT_CHARSET);
     }
 
-    @Override public void close() throws Exception {
+    @Override public void close() throws IOException {
         socketOut.close();
         socketIn.close();
     }

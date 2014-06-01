@@ -3,7 +3,6 @@ package com.karalabe.iris;
 import com.karalabe.iris.callback.CallbackHandlerRegistry;
 import com.karalabe.iris.callback.CallbackRegistry;
 import com.karalabe.iris.callback.StaticCallbackHandler;
-import com.karalabe.iris.protocols.Validators;
 import com.karalabe.iris.protocols.broadcast.BroadcastAPI;
 import com.karalabe.iris.protocols.broadcast.BroadcastTransfer;
 import com.karalabe.iris.protocols.publish_subscribe.PublishApi;
@@ -44,10 +43,15 @@ public class Connection implements CallbackRegistry, AutoCloseable, SubscribeApi
     private final TunnelTransfer    tunnelTransfer;
 
     public Connection(final int relayPort) throws IOException {
-        this(relayPort, "", null);
+        this(relayPort, "", null, null);
     }
 
-    Connection(int port, @NotNull String clusterName, ServiceHandler handler) throws IOException {
+    Connection(int port, @NotNull String clusterName, ServiceHandler handler, ServiceLimits limits) throws IOException {
+        // Load the default service limits if none specified
+        if (limits == null) {
+            limits = new ServiceLimits();
+        }
+
         socket = new Socket(InetAddress.getLoopbackAddress(), port);
 
         protocol = new ProtocolBase(socket.getInputStream(), socket.getOutputStream());
@@ -116,8 +120,8 @@ public class Connection implements CallbackRegistry, AutoCloseable, SubscribeApi
         publishTransfer.publish(topic, message);
     }
 
-    @Override public void subscribe(@NotNull final String topic, @NotNull final TopicHandler handler) throws IOException {
-        subscribeTransfer.subscribe(topic, handler);
+    @Override public void subscribe(@NotNull final String topic, @NotNull final TopicHandler handler, final TopicLimits limits) throws IOException {
+        subscribeTransfer.subscribe(topic, handler, limits);
     }
 
     @Override public void unsubscribe(@NotNull final String topic, @NotNull final TopicHandler handler) throws IOException {
@@ -181,7 +185,7 @@ public class Connection implements CallbackRegistry, AutoCloseable, SubscribeApi
         protocol.send(OpCode.TUNNEL_CLOSE, () -> {});
     }
 
-    @Override public void close() throws Exception {
+    @Override public void close() throws IOException {
         protocol.close();
         socket.close();
     }
