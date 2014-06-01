@@ -1,6 +1,5 @@
-package com.karalabe.iris;
+package com.karalabe.iris.protocol;
 
-import com.karalabe.iris.protocol.ProtocolBase;
 import org.junit.Assert;
 import org.junit.Test;
 
