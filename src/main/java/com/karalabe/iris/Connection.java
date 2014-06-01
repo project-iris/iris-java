@@ -115,11 +115,11 @@ public class Connection implements CallbackRegistry, AutoCloseable, SubscribeApi
         publishTransfer.publish(topic, message);
     }
 
-    @Override public void subscribe(@NotNull final String topic, @NotNull final SubscriptionHandler handler) throws IOException {
+    @Override public void subscribe(@NotNull final String topic, @NotNull final TopicHandler handler) throws IOException {
         subscribeTransfer.subscribe(topic, handler);
     }
 
-    @Override public void unsubscribe(@NotNull final String topic, @NotNull final SubscriptionHandler handler) throws IOException {
+    @Override public void unsubscribe(@NotNull final String topic, @NotNull final TopicHandler handler) throws IOException {
         subscribeTransfer.unsubscribe(topic, handler);
     }
 

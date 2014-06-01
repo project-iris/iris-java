@@ -3,10 +3,13 @@ package com.karalabe.iris.protocols;
 import org.jetbrains.annotations.NotNull;
 
 public final class Validators {
+
+    public static final String FEDERATION_SEPARATOR = ":";
+
     private Validators() {}
 
     public static void validateLocalClusterName(@NotNull final String clusterName) {
-        if (clusterName.contains(":")) {
+        if (clusterName.contains(FEDERATION_SEPARATOR)) {
             throw new IllegalArgumentException("Service name cannot contain colon!");
         }
     }
