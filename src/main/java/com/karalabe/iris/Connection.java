@@ -22,9 +22,7 @@ import com.karalabe.iris.protocol.tunnel.TunnelTransfer;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.IOException;
-import java.net.InetAddress;
 import java.net.ProtocolException;
-import java.net.Socket;
 
 /*
  * Message relay between the local app and the local iris node.
@@ -34,7 +32,6 @@ public class Connection implements CallbackRegistry, AutoCloseable, SubscribeApi
     private static final String CLIENT_MAGIC     = "iris-client-magic";
     private static final String RELAY_MAGIC      = "iris-relay-magic";
 
-    private final Socket                  socket;  // Network connection to the iris node
     private final ProtocolBase            protocol;
     private final CallbackHandlerRegistry callbacks;
 
@@ -65,12 +62,10 @@ public class Connection implements CallbackRegistry, AutoCloseable, SubscribeApi
 
         this.handler = handler;
 
-        this.broadcastWorkers = new BoundedThreadPool(limits.broadcastThreads, limits.broadcastMemory);
-        this.requestWorkers = new BoundedThreadPool(limits.requestThreads, limits.requestMemory);
+        broadcastWorkers = new BoundedThreadPool(limits.broadcastThreads, limits.broadcastMemory);
+        requestWorkers = new BoundedThreadPool(limits.requestThreads, limits.requestMemory);
 
-        socket = new Socket(InetAddress.getLoopbackAddress(), port);
-
-        protocol = new ProtocolBase(socket.getInputStream(), socket.getOutputStream());
+        protocol = new ProtocolBase(port);
         callbacks = new CallbackHandlerRegistry();
 
         broadcastTransfer = new BroadcastTransfer(protocol, callbacks);
@@ -203,6 +198,5 @@ public class Connection implements CallbackRegistry, AutoCloseable, SubscribeApi
 
     @Override public void close() throws IOException {
         protocol.close();
-        socket.close();
     }
 }

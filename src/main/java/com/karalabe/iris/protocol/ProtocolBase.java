@@ -3,7 +3,9 @@ package com.karalabe.iris.protocol;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.*;
+import java.net.InetAddress;
 import java.net.ProtocolException;
+import java.net.Socket;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 
@@ -14,12 +16,14 @@ public class ProtocolBase implements AutoCloseable {
 
     private static final Charset DEFAULT_CHARSET = StandardCharsets.UTF_8;
 
+    @NotNull private final   Socket           socket;
     @NotNull protected final DataInputStream  socketIn;
     @NotNull protected final DataOutputStream socketOut;
 
-    public ProtocolBase(@NotNull final InputStream socketIn, @NotNull final OutputStream socketOut) {
-        this.socketIn = new DataInputStream(socketIn);
-        this.socketOut = new DataOutputStream(socketOut);
+    public ProtocolBase(final int port) throws IOException {
+        socket = new Socket(InetAddress.getLoopbackAddress(), port);
+        socketIn = new DataInputStream(socket.getInputStream());
+        socketOut = new DataOutputStream(socket.getOutputStream());
     }
 
     @FunctionalInterface public interface Executable {
@@ -115,5 +119,6 @@ public class ProtocolBase implements AutoCloseable {
     @Override public void close() throws IOException {
         socketOut.close();
         socketIn.close();
+        socket.close();
     }
 }

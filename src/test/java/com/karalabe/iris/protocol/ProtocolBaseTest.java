@@ -4,8 +4,8 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.IOException;
-import java.io.PipedInputStream;
-import java.io.PipedOutputStream;
+import java.net.ServerSocket;
+import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
@@ -58,10 +58,28 @@ public class ProtocolBaseTest {
     }
 
     private static void testProtocol(TestConsumer<ProtocolBase> testConsumer) throws Exception {
-        final PipedOutputStream outputStream = new PipedOutputStream();
-        final PipedInputStream inputStream = new PipedInputStream(outputStream);
+        // Create a simple echo server (i.e. loop output stream back to input stream)
+        final ServerSocket server = new ServerSocket(0);
+        new Thread(() -> {
+            try {
+                Socket socket = server.accept();
+                byte[] buffer = new byte[256];
+                int len = 0;
 
-        try (final ProtocolBase protocol = new ProtocolBase(inputStream, outputStream)) {
+                while ((len = socket.getInputStream().read(buffer)) >= 0) {
+                    socket.getOutputStream().write(buffer, 0, len);
+                    socket.getOutputStream().flush();
+                }
+                socket.close();
+                server.close();
+            }
+            catch (IOException e) {
+                e.printStackTrace();
+            }
+        }).start();
+
+        // Execute the requested test
+        try (final ProtocolBase protocol = new ProtocolBase(server.getLocalPort())) {
             testConsumer.accept(protocol);
         }
         catch (IOException e) {
