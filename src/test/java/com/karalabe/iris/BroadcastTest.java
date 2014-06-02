@@ -1,3 +1,8 @@
+// Copyright (c) 2014 Project Iris. All rights reserved.
+//
+// The current language binding is an official support library of the Iris
+// cloud messaging framework, and as such, the same licensing terms apply.
+// For details please see http://iris.karalabe.com/downloads#License
 package com.karalabe.iris;
 
 import com.carrotsearch.junitbenchmarks.AbstractBenchmark;
@@ -12,6 +17,7 @@ import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 
 public class BroadcastTest extends AbstractBenchmark {
+    // Service handler for the broadcast tests.
     private class BroadcastTestHandler implements ServiceHandler {
         public Connection conn;
         public Set<String> arrived = Collections.synchronizedSet(new HashSet<>());
@@ -27,6 +33,7 @@ public class BroadcastTest extends AbstractBenchmark {
         }
     }
 
+    // Tests multiple concurrent client and service broadcasts.
     @BenchmarkOptions(benchmarkRounds = 5, warmupRounds = 10)
     @Test public void concurrentBroadcasts() throws Exception {
         final int CLIENTS = 25, SERVERS = 25, MESSAGES = 25;
