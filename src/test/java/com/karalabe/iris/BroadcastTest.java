@@ -148,7 +148,7 @@ public class BroadcastTest extends AbstractBenchmark {
         }
     }
 
-    // Tests multiple concurrent client and service broadcasts.
+    // Tests the broadcast thread limitation.
     @BenchmarkOptions(benchmarkRounds = 5, warmupRounds = 10)
     @Test public void threadLimiting() throws Exception {
         final int MESSAGES = 4, SLEEP = 100;
@@ -168,6 +168,28 @@ public class BroadcastTest extends AbstractBenchmark {
             // Wait for half time and verify that only half was processed
             Thread.sleep(MESSAGES / 2 * SLEEP + SLEEP / 2);
             Assert.assertEquals(MESSAGES / 2, handler.arrived.size());
+        }
+    }
+
+    // Tests the broadcast memory limitation.
+    @BenchmarkOptions(benchmarkRounds = 5, warmupRounds = 10)
+    @Test public void memoryLimiting() throws Exception {
+        // Create the service handler and limiter
+        BroadcastTestHandler handler = new BroadcastTestHandler();
+        handler.pending = new Semaphore(2);
+        handler.pending.acquire(2);
+
+        ServiceLimits limits = new ServiceLimits();
+        limits.broadcastMemory = 1;
+
+        try (final Service ignored = new Service(Config.RELAY_PORT, Config.CLUSTER_NAME, handler, limits)) {
+            // Check that a 1 byte broadcast passes
+            handler.conn.broadcast(Config.CLUSTER_NAME, new byte[]{0x00});
+            Assert.assertTrue(handler.pending.tryAcquire(100, TimeUnit.MILLISECONDS));
+
+            // Check that a 2 byte broadcast is dropped
+            handler.conn.broadcast(Config.CLUSTER_NAME, new byte[]{0x00, 0x00});
+            Assert.assertFalse(handler.pending.tryAcquire(100, TimeUnit.MILLISECONDS));
         }
     }
 }
