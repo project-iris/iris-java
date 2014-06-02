@@ -14,5 +14,5 @@ public abstract class ExecutorBase {
         this.protocol = protocol;
     }
 
-    public abstract void close() throws Exception;
+    public void close() throws Exception { }
 }

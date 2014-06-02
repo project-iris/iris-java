@@ -22,6 +22,7 @@ public class Connection implements AutoCloseable {
     private final HandshakeExecutor handshaker;
     private final BroadcastExecutor broadcaster;
     private final RequestExecutor   requester;
+    private final TeardownExecutor  teardowner;
 
     //private final PublishExecutor   publishTransfer;
     //private final SubscribeExecutor subscribeTransfer;
@@ -45,6 +46,7 @@ public class Connection implements AutoCloseable {
         handshaker = new HandshakeExecutor(protocol);
         broadcaster = new BroadcastExecutor(protocol, handler, limits);
         requester = new RequestExecutor(protocol, handler, limits);
+        teardowner = new TeardownExecutor(protocol, handler);
 
         //publishTransfer = new PublishExecutor(protocol);
         //subscribeTransfer = new SubscribeExecutor(protocol);
@@ -61,7 +63,6 @@ public class Connection implements AutoCloseable {
     public void addCallbackHandler(@NotNull final StaticCallbackHandler callbackHandler) {
         callbacks.addCallbackHandler(callbackHandler);
     }
-
 
     public void broadcast(@NotNull final String cluster, @NotNull final byte[] message) throws IOException {
         Validators.validateRemoteClusterName(cluster);
@@ -126,13 +127,15 @@ public class Connection implements AutoCloseable {
                         break;
 
                     case CLOSE:
+                        teardowner.handleTeardown();
                         return;
 
                     default:
                         throw new IllegalStateException(String.format("Illegal %s received: '%s'!", OpCode.class.getSimpleName(), opCode));
                 }
             }
-        } catch (Exception e) {
+        }
+        catch (Exception e) {
         }
         finally {
             try {
