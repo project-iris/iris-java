@@ -41,6 +41,10 @@ public class ProtocolBase implements AutoCloseable {
         }
     }
 
+    public void flush() throws IOException {
+        socketOut.flush();
+    }
+
     public void sendByte(final byte data) throws IOException {
         socketOut.writeByte(data);
     }

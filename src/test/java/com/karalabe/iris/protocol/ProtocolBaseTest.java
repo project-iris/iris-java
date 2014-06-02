@@ -15,6 +15,7 @@ public class ProtocolBaseTest {
         testProtocol(protocol -> {
             for (final byte sentValue : Arrays.asList(Byte.MIN_VALUE, (byte) 0, Byte.MAX_VALUE)) {
                 protocol.sendByte(sentValue);
+                protocol.flush();
                 Assert.assertEquals(sentValue, protocol.receiveByte());
             }
         });
@@ -24,6 +25,7 @@ public class ProtocolBaseTest {
         testProtocol(protocol -> {
             for (final boolean sentValue : Arrays.asList(true, false)) {
                 protocol.sendBoolean(sentValue);
+                protocol.flush();
                 Assert.assertEquals(sentValue, protocol.receiveBoolean());
             }
         });
@@ -33,6 +35,7 @@ public class ProtocolBaseTest {
         testProtocol(protocol -> {
             for (final long sentValue : Arrays.asList(0L, 127L, 128L, 2560L, 1894L, 3141592653L, (long) Byte.MAX_VALUE, (long) Short.MAX_VALUE, (long) Integer.MAX_VALUE/*, Long.MAX_VALUE*/)) {
                 protocol.sendVarint(sentValue);
+                protocol.flush();
                 Assert.assertEquals(sentValue, protocol.receiveVarint());
             }
         });
@@ -43,6 +46,7 @@ public class ProtocolBaseTest {
             for (final String sentValue : Arrays.asList("", "a", "abcdefg", Arrays.toString(new Exception().getStackTrace()).substring(0, 1000))) {
                 final byte[] bytes = sentValue.getBytes(StandardCharsets.UTF_8);
                 protocol.sendBinary(bytes);
+                protocol.flush();
                 Assert.assertArrayEquals(bytes, protocol.receiveBinary());
             }
         });
@@ -52,6 +56,7 @@ public class ProtocolBaseTest {
         testProtocol(protocol -> {
             for (final String sentValue : Arrays.asList("", "a", "abcdefg", Arrays.toString(new Exception().getStackTrace()).substring(0, 1000))) {
                 protocol.sendString(sentValue);
+                protocol.flush();
                 Assert.assertEquals(sentValue, protocol.receiveString());
             }
         });

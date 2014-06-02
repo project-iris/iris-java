@@ -20,10 +20,11 @@ public class Connection implements AutoCloseable {
     private final ServiceHandler handler;
 
     // Network layer fields
-    private final HandshakeExecutor handshaker;
-    private final BroadcastExecutor broadcaster;
-    private final RequestExecutor   requester;
-    private final TeardownExecutor  teardowner;
+    private final HandshakeExecutor    handshaker;
+    private final BroadcastExecutor    broadcaster;
+    private final RequestExecutor      requester;
+    private final SubscriptionExecutor subscriber;
+    private final TeardownExecutor     teardowner;
 
     //private final PublishExecutor   publishTransfer;
     //private final SubscribeExecutor subscribeTransfer;
@@ -47,6 +48,7 @@ public class Connection implements AutoCloseable {
         handshaker = new HandshakeExecutor(protocol);
         broadcaster = new BroadcastExecutor(protocol, handler, limits);
         requester = new RequestExecutor(protocol, handler, limits);
+        subscriber = new SubscriptionExecutor(protocol);
         teardowner = new TeardownExecutor(protocol, handler);
 
         //publishTransfer = new PublishExecutor(protocol);
@@ -75,19 +77,25 @@ public class Connection implements AutoCloseable {
         Validators.validateRemoteClusterName(cluster);
         return requester.request(cluster, request, timeoutMillis);
     }
+
+    public void subscribe(@NotNull final String topic, @NotNull final TopicHandler handler, TopicLimits limits) throws IOException {
+        Validators.validateTopic(topic);
+        if (limits == null) {
+            limits = new TopicLimits();
+        }
+        subscriber.subscribe(topic, handler, limits);
+    }
+
+    public void publish(@NotNull final String topic, @NotNull final byte[] event) throws IOException {
+        Validators.validateTopic(topic);
+        subscriber.publish(topic, event);
+    }
+
+    public void unsubscribe(@NotNull final String topic) throws IOException, InterruptedException {
+        Validators.validateTopic(topic);
+        subscriber.unsubscribe(topic);
+    }
 /*
-    @Override public void publish(@NotNull final String topic, @NotNull final byte[] message) throws IOException {
-        publishTransfer.publish(topic, message);
-    }
-
-    @Override public void subscribe(@NotNull final String topic, @NotNull final TopicHandler handler, final TopicLimits limits) throws IOException {
-        subscribeTransfer.subscribe(topic, handler, limits);
-    }
-
-    @Override public void unsubscribe(@NotNull final String topic, @NotNull final TopicHandler handler) throws IOException {
-        subscribeTransfer.unsubscribe(topic, handler);
-    }
-
     @Override public void tunnel(@NotNull final String clusterName, final long timeOutMillis, TunnelCallbackHandlers callbackHandlers) throws IOException {
         tunnelTransfer.tunnel(clusterName, timeOutMillis, callbackHandlers);
     }*/
@@ -109,7 +117,7 @@ public class Connection implements AutoCloseable {
                         break;
 
                     case PUBLISH:
-                        //publishTransfer.handle();
+                        subscriber.handlePublish();
                         break;
 
                     case TUNNEL_BUILD:
