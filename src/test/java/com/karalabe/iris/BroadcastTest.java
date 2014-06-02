@@ -73,7 +73,7 @@ public class BroadcastTest {
                     barrier.await(Config.PHASE_TIMEOUT, TimeUnit.SECONDS);
 
                     // Wait a while for all broadcasts to arrive (replace with some channel eventually)
-                    Thread.sleep(1000);
+                    Thread.sleep(500);
 
                     for (int j = 0; j < CLIENTS; j++) {
                         for (int k = 0; k < MESSAGES; k++) {

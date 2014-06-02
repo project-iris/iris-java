@@ -52,6 +52,10 @@ public class Connection implements AutoCloseable {
 
         handshaker.init(clusterName);
         handshaker.handleInit();
+
+        new Thread(() -> {
+            processMessages();
+        }).start();
     }
 
     public void addCallbackHandler(@NotNull final StaticCallbackHandler callbackHandler) {
@@ -85,50 +89,58 @@ public class Connection implements AutoCloseable {
         tunnelTransfer.tunnel(clusterName, timeOutMillis, callbackHandlers);
     }*/
 
-    private void process() throws Exception {
+    private void processMessages() {
         try {
-            final OpCode opCode = OpCode.valueOf(protocol.receiveByte());
-            switch (opCode) {
-                case BROADCAST:
-                    broadcaster.handleBroadcast();
-                    break;
+            while (true) {
+                final OpCode opCode = OpCode.valueOf(protocol.receiveByte());
+                switch (opCode) {
+                    case BROADCAST:
+                        broadcaster.handleBroadcast();
+                        break;
 
-                case REQUEST:
-                    requester.handleRequest();
-                    break;
-                case REPLY:
-                    requester.handleReply();
-                    break;
+                    case REQUEST:
+                        requester.handleRequest();
+                        break;
+                    case REPLY:
+                        requester.handleReply();
+                        break;
 
-                case PUBLISH:
-                    //publishTransfer.handle();
-                    break;
+                    case PUBLISH:
+                        //publishTransfer.handle();
+                        break;
 
-                case TUNNEL_BUILD:
-                    //tunnelTransfer.handleTunnelBuild();
-                    break;
-                case TUNNEL_CONFIRM:
-                    //tunnelTransfer.handleTunnelConfirm();
-                    break;
-                case TUNNEL_ALLOW:
-                    //tunnelTransfer.handleTunnelAllow();
-                    break;
-                case TUNNEL_TRANSFER:
-                    //tunnelTransfer.handleTunnelTransfer();
-                    break;
-                case TUNNEL_CLOSE:
-                    //tunnelTransfer.handleTunnelClose();
-                    break;
+                    case TUNNEL_BUILD:
+                        //tunnelTransfer.handleTunnelBuild();
+                        break;
+                    case TUNNEL_CONFIRM:
+                        //tunnelTransfer.handleTunnelConfirm();
+                        break;
+                    case TUNNEL_ALLOW:
+                        //tunnelTransfer.handleTunnelAllow();
+                        break;
+                    case TUNNEL_TRANSFER:
+                        //tunnelTransfer.handleTunnelTransfer();
+                        break;
+                    case TUNNEL_CLOSE:
+                        //tunnelTransfer.handleTunnelClose();
+                        break;
 
-                case CLOSE:
-                    return;
+                    case CLOSE:
+                        return;
 
-                default:
-                    throw new IllegalStateException(String.format("Illegal %s received: '%s'!", OpCode.class.getSimpleName(), opCode));
+                    default:
+                        throw new IllegalStateException(String.format("Illegal %s received: '%s'!", OpCode.class.getSimpleName(), opCode));
+                }
             }
+        } catch (Exception e) {
         }
         finally {
-            close();
+            try {
+                close();
+            }
+            catch (IOException e) {
+                e.printStackTrace();
+            }
         }
     }
 
