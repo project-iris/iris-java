@@ -78,6 +78,10 @@ public class Connection implements AutoCloseable {
         return requester.request(cluster, request, timeoutMillis);
     }
 
+    public void subscribe(@NotNull final String topic, @NotNull final TopicHandler handler) throws IOException {
+        subscribe(topic, handler, null);
+    }
+
     public void subscribe(@NotNull final String topic, @NotNull final TopicHandler handler, TopicLimits limits) throws IOException {
         Validators.validateTopic(topic);
         if (limits == null) {

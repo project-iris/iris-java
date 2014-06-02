@@ -62,7 +62,7 @@ public class SubscriptionExecutor extends ExecutorBase {
     }
 
     public void publish(final String topic, final byte[] event) throws IOException {
-        protocol.send(OpCode.SUBSCRIBE, () -> {
+        protocol.send(OpCode.PUBLISH, () -> {
             protocol.sendString(topic);
             protocol.sendBinary(event);
         });
