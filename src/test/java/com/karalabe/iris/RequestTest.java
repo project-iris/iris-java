@@ -16,6 +16,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class RequestTest extends AbstractBenchmark {
@@ -110,7 +111,7 @@ public class RequestTest extends AbstractBenchmark {
     }
 
     // Service handler for the thread limited request tests.
-    private class RequestLimitTestHandler implements ServiceHandler {
+    private class RequestTestTimedHandler implements ServiceHandler {
         public Connection conn;
         public int        sleep;
 
@@ -131,11 +132,37 @@ public class RequestTest extends AbstractBenchmark {
 
     // Tests the request thread limitation.
     @BenchmarkOptions(benchmarkRounds = 5, warmupRounds = 10)
+    @Test public void timeout() throws Exception {
+        final int SLEEP = 100;
+
+        // Create the service handler
+        RequestTestTimedHandler handler = new RequestTestTimedHandler();
+        handler.sleep = SLEEP;
+
+        try (final Service ignored = new Service(Config.RELAY_PORT, Config.CLUSTER_NAME, handler)) {
+            // Check that the timeouts are complied with.
+            try {
+                handler.conn.request(Config.CLUSTER_NAME, new byte[]{0x00}, SLEEP * 2);
+            } catch (Exception e) {
+                Assert.fail();
+            }
+            try {
+                handler.conn.request(Config.CLUSTER_NAME, new byte[]{0x00}, SLEEP / 2);
+                Assert.fail();
+            } catch (TimeoutException e) {
+            } catch (Exception e) {
+                Assert.fail();
+            }
+        }
+    }
+
+    // Tests the request thread limitation.
+    @BenchmarkOptions(benchmarkRounds = 5, warmupRounds = 10)
     @Test public void threadLimiting() throws Exception {
         final int REQUESTS = 4, SLEEP = 100;
 
         // Create the service handler and limiter
-        RequestLimitTestHandler handler = new RequestLimitTestHandler();
+        RequestTestTimedHandler handler = new RequestTestTimedHandler();
         handler.sleep = SLEEP;
 
         ServiceLimits limits = new ServiceLimits();
