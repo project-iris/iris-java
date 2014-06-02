@@ -1,18 +1,17 @@
 package com.karalabe.iris.protocol.publish_subscribe;
 
-import com.karalabe.iris.protocol.OpCode;
+import com.karalabe.iris.protocol.ExecutorBase;
 import com.karalabe.iris.protocol.ProtocolBase;
-import com.karalabe.iris.callback.CallbackHandlerRegistry;
-import com.karalabe.iris.protocol.TransferBase;
-import com.karalabe.iris.protocol.Validators;
 import org.jetbrains.annotations.NotNull;
 
-import java.io.IOException;
+public class PublishExecutor extends ExecutorBase {
+    public PublishExecutor(@NotNull final ProtocolBase protocol) { super(protocol); }
 
-public class PublishTransfer extends TransferBase implements PublishApi {
-    public PublishTransfer(@NotNull final ProtocolBase protocol, @NotNull final CallbackHandlerRegistry callbacks) { super(protocol, callbacks); }
+    @Override public void close() throws Exception {
 
-    @Override public void publish(@NotNull final String topic, @NotNull final byte[] message) throws IOException {
+    }
+
+    /*public void publish(@NotNull final String topic, @NotNull final byte[] message) throws IOException {
         Validators.validateTopic(topic);
         Validators.validateMessage(message);
 
@@ -33,5 +32,5 @@ public class PublishTransfer extends TransferBase implements PublishApi {
         catch (IllegalArgumentException e) {
             throw new IOException(String.format("No %s found!", PublishCallbackHandler.class.getSimpleName()), e);
         }
-    }
+    }*/
 }

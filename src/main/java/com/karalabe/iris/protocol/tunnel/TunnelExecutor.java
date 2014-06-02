@@ -1,18 +1,17 @@
 package com.karalabe.iris.protocol.tunnel;
 
-import com.karalabe.iris.protocol.OpCode;
+import com.karalabe.iris.protocol.ExecutorBase;
 import com.karalabe.iris.protocol.ProtocolBase;
-import com.karalabe.iris.callback.CallbackHandlerRegistry;
-import com.karalabe.iris.protocol.TransferBase;
-import com.karalabe.iris.protocol.Validators;
 import org.jetbrains.annotations.NotNull;
 
-import java.io.IOException;
+public class TunnelExecutor extends ExecutorBase {
+    public TunnelExecutor(@NotNull final ProtocolBase protocol) { super(protocol); }
 
-public class TunnelTransfer extends TransferBase implements TunnelApi {
-    public TunnelTransfer(@NotNull final ProtocolBase protocol, @NotNull final CallbackHandlerRegistry callbacks) { super(protocol, callbacks); }
+    @Override public void close() throws Exception {
 
-    @Override public void tunnel(@NotNull final String clusterName, final long timeOutMillis, TunnelCallbackHandlers callbackHandlers) throws IOException {
+    }
+
+   /* @Override public void tunnel(@NotNull final String clusterName, final long timeOutMillis, TunnelCallbackHandlers callbackHandlers) throws IOException {
         Validators.validateRemoteClusterName(clusterName);
 
         final int bufferSize = 0; // TODO
@@ -115,5 +114,5 @@ public class TunnelTransfer extends TransferBase implements TunnelApi {
         catch (IllegalArgumentException e) {
             System.err.printf("No %s found!%n", TunnelCallbackHandlers.class.getSimpleName());
         }
-    }
+    }*/
 }

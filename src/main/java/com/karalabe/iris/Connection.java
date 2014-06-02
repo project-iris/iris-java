@@ -1,54 +1,31 @@
 package com.karalabe.iris;
 
 import com.karalabe.iris.callback.CallbackHandlerRegistry;
-import com.karalabe.iris.callback.CallbackRegistry;
 import com.karalabe.iris.callback.StaticCallbackHandler;
-import com.karalabe.iris.common.BoundedThreadPool;
-import com.karalabe.iris.protocol.OpCode;
-import com.karalabe.iris.protocol.ProtocolBase;
-import com.karalabe.iris.protocol.broadcast.BroadcastAPI;
-import com.karalabe.iris.protocol.broadcast.BroadcastTransfer;
-import com.karalabe.iris.protocol.publish_subscribe.PublishApi;
-import com.karalabe.iris.protocol.publish_subscribe.PublishTransfer;
-import com.karalabe.iris.protocol.publish_subscribe.SubscribeApi;
-import com.karalabe.iris.protocol.publish_subscribe.SubscribeTransfer;
-import com.karalabe.iris.protocol.request_reply.ReplyTransfer;
-import com.karalabe.iris.protocol.request_reply.RequestApi;
-import com.karalabe.iris.protocol.request_reply.RequestCallbackHandler;
-import com.karalabe.iris.protocol.request_reply.RequestTransfer;
-import com.karalabe.iris.protocol.tunnel.TunnelApi;
-import com.karalabe.iris.protocol.tunnel.TunnelCallbackHandlers;
-import com.karalabe.iris.protocol.tunnel.TunnelTransfer;
+import com.karalabe.iris.protocol.*;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.IOException;
-import java.net.ProtocolException;
+import java.util.concurrent.TimeoutException;
 
 /*
  * Message relay between the local app and the local iris node.
  **/
-public class Connection implements CallbackRegistry, AutoCloseable, SubscribeApi, PublishApi, TunnelApi, BroadcastAPI, RequestApi {
-    private static final String PROTOCOL_VERSION = "v1.0-draft2";
-    private static final String CLIENT_MAGIC     = "iris-client-magic";
-    private static final String RELAY_MAGIC      = "iris-relay-magic";
-
+public class Connection implements AutoCloseable {
     private final ProtocolBase            protocol;
     private final CallbackHandlerRegistry callbacks;
 
     // Application layer fields
     private final ServiceHandler handler;
 
-    // Quality of service fields
-    BoundedThreadPool broadcastWorkers;
-    BoundedThreadPool requestWorkers;
-
     // Network layer fields
-    private final BroadcastTransfer broadcastTransfer;
-    private final RequestTransfer   requestTransfer;
-    private final ReplyTransfer     replyTransfer;
-    private final PublishTransfer   publishTransfer;
-    private final SubscribeTransfer subscribeTransfer;
-    private final TunnelTransfer    tunnelTransfer;
+    private final HandshakeExecutor handshaker;
+    private final BroadcastExecutor broadcaster;
+    private final RequestExecutor   requester;
+
+    //private final PublishExecutor   publishTransfer;
+    //private final SubscribeExecutor subscribeTransfer;
+    //private final TunnelExecutor    tunnelTransfer;
 
     public Connection(final int relayPort) throws IOException {
         this(relayPort, "", null, null);
@@ -62,71 +39,36 @@ public class Connection implements CallbackRegistry, AutoCloseable, SubscribeApi
 
         this.handler = handler;
 
-        broadcastWorkers = new BoundedThreadPool(limits.broadcastThreads, limits.broadcastMemory);
-        requestWorkers = new BoundedThreadPool(limits.requestThreads, limits.requestMemory);
-
         protocol = new ProtocolBase(port);
         callbacks = new CallbackHandlerRegistry();
 
-        broadcastTransfer = new BroadcastTransfer(protocol, callbacks);
-        requestTransfer = new RequestTransfer(protocol, callbacks);
-        replyTransfer = new ReplyTransfer(protocol, callbacks);
-        publishTransfer = new PublishTransfer(protocol, callbacks);
-        subscribeTransfer = new SubscribeTransfer(protocol, callbacks);
-        tunnelTransfer = new TunnelTransfer(protocol, callbacks);
+        handshaker = new HandshakeExecutor(protocol);
+        broadcaster = new BroadcastExecutor(protocol, handler, limits);
+        requester = new RequestExecutor(protocol, handler, limits);
 
-        init(clusterName);
-        handleInit();
+        //publishTransfer = new PublishExecutor(protocol);
+        //subscribeTransfer = new SubscribeExecutor(protocol);
+        //tunnelTransfer = new TunnelExecutor(protocol);
+
+        handshaker.init(clusterName);
+        handshaker.handleInit();
     }
 
     public void addCallbackHandler(@NotNull final StaticCallbackHandler callbackHandler) {
         callbacks.addCallbackHandler(callbackHandler);
     }
 
-    private void init(@NotNull final String clusterName) throws IOException {
-        protocol.send(OpCode.INIT, () -> {
-            protocol.sendString(CLIENT_MAGIC);
-            protocol.sendString(PROTOCOL_VERSION);
-            protocol.sendString(clusterName);
-        });
+
+    public void broadcast(@NotNull final String cluster, @NotNull final byte[] message) throws IOException {
+        Validators.validateRemoteClusterName(cluster);
+        broadcaster.broadcast(cluster, message);
     }
 
-    private String handleInit() throws IOException {
-        final OpCode opCode = OpCode.valueOf(protocol.receiveByte());
-
-        switch (opCode) {
-            case INIT: {
-                verifyMagic();
-
-                final String version = protocol.receiveString();
-                return version;
-            }
-
-            case DENY: {
-                verifyMagic();
-
-                final String reason = protocol.receiveString();
-                throw new ProtocolException(String.format("Connection denied: %s", reason));
-            }
-
-            default:
-                throw new ProtocolException(String.format("Protocol violation: invalid init response opcode: %s", opCode));
-        }
+    public byte[] request(@NotNull final String cluster, @NotNull final byte[] request, final long timeoutMillis) throws IOException, InterruptedException, RemoteException, TimeoutException {
+        Validators.validateRemoteClusterName(cluster);
+        return requester.request(cluster, request, timeoutMillis);
     }
-
-    private void verifyMagic() throws IOException {
-        final String relayMagic = protocol.receiveString();
-        if (!RELAY_MAGIC.equals(relayMagic)) { throw new ProtocolException(String.format("Protocol violation: invalid relay magic: %s", relayMagic)); }
-    }
-
-    @Override public void broadcast(@NotNull final String clusterName, @NotNull final byte[] message) throws IOException {
-        broadcastTransfer.broadcast(clusterName, message);
-    }
-
-    @Override public void request(@NotNull final String clusterName, @NotNull final byte[] request, final long timeOutMillis, RequestCallbackHandler callbackHandler) throws IOException {
-        requestTransfer.request(clusterName, request, timeOutMillis, callbackHandler);
-    }
-
+/*
     @Override public void publish(@NotNull final String topic, @NotNull final byte[] message) throws IOException {
         publishTransfer.publish(topic, message);
     }
@@ -141,43 +83,41 @@ public class Connection implements CallbackRegistry, AutoCloseable, SubscribeApi
 
     @Override public void tunnel(@NotNull final String clusterName, final long timeOutMillis, TunnelCallbackHandlers callbackHandlers) throws IOException {
         tunnelTransfer.tunnel(clusterName, timeOutMillis, callbackHandlers);
-    }
+    }*/
 
-    public void handle() throws Exception {
-        // TODO handle all messages
-        // Producer/consumer?
+    private void process() throws Exception {
         try {
             final OpCode opCode = OpCode.valueOf(protocol.receiveByte());
             switch (opCode) {
                 case BROADCAST:
-                    broadcastTransfer.handle();
+                    broadcaster.handleBroadcast();
                     break;
 
                 case REQUEST:
-                    requestTransfer.handle();
+                    requester.handleRequest();
                     break;
                 case REPLY:
-                    replyTransfer.handle();
+                    requester.handleReply();
                     break;
 
                 case PUBLISH:
-                    publishTransfer.handle();
+                    //publishTransfer.handle();
                     break;
 
                 case TUNNEL_BUILD:
-                    tunnelTransfer.handleTunnelBuild();
+                    //tunnelTransfer.handleTunnelBuild();
                     break;
                 case TUNNEL_CONFIRM:
-                    tunnelTransfer.handleTunnelConfirm();
+                    //tunnelTransfer.handleTunnelConfirm();
                     break;
                 case TUNNEL_ALLOW:
-                    tunnelTransfer.handleTunnelAllow();
+                    //tunnelTransfer.handleTunnelAllow();
                     break;
                 case TUNNEL_TRANSFER:
-                    tunnelTransfer.handleTunnelTransfer();
+                    //tunnelTransfer.handleTunnelTransfer();
                     break;
                 case TUNNEL_CLOSE:
-                    tunnelTransfer.handleTunnelClose();
+                    //tunnelTransfer.handleTunnelClose();
                     break;
 
                 case CLOSE:
