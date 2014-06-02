@@ -8,12 +8,14 @@ import org.junit.Test;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 
 public class BroadcastTest extends AbstractBenchmark {
     private class BroadcastTestHandler implements ServiceHandler {
         public Connection conn;
         public Set<String> arrived = Collections.synchronizedSet(new HashSet<>());
+        public Semaphore pending;
 
         @Override public void init(final Connection conn) {
             this.conn = conn;
@@ -21,10 +23,11 @@ public class BroadcastTest extends AbstractBenchmark {
 
         @Override public void handleBroadcast(final byte[] message) {
             arrived.add(new String(message, StandardCharsets.UTF_8));
+            pending.release(1);
         }
     }
 
-    @BenchmarkOptions(benchmarkRounds = 1, warmupRounds = 0)
+    @BenchmarkOptions(benchmarkRounds = 5, warmupRounds = 10)
     @Test public void concurrentBroadcasts() throws Exception {
         final int CLIENTS = 25, SERVERS = 25, MESSAGES = 25;
 
@@ -64,6 +67,9 @@ public class BroadcastTest extends AbstractBenchmark {
 
                 try (final Service serv = new Service(Config.RELAY_PORT, Config.CLUSTER_NAME, handler)) {
                     // Wait till all clients and servers connect
+                    handler.pending = new Semaphore((CLIENTS + SERVERS) * MESSAGES);
+                    handler.pending.acquire((CLIENTS + SERVERS) * MESSAGES);
+
                     barrier.await(Config.PHASE_TIMEOUT, TimeUnit.SECONDS);
 
                     // Send all the service broadcasts
@@ -75,8 +81,8 @@ public class BroadcastTest extends AbstractBenchmark {
                     }
                     barrier.await(Config.PHASE_TIMEOUT, TimeUnit.SECONDS);
 
-                    // Wait a while for all broadcasts to arrive (replace with some channel eventually)
-                    Thread.sleep(500);
+                    // Wait for all broadcasts to arrive
+                    handler.pending.acquire((CLIENTS + SERVERS) * MESSAGES);
 
                     for (int j = 0; j < CLIENTS; j++) {
                         for (int k = 0; k < MESSAGES; k++) {
