@@ -7,12 +7,12 @@ package com.karalabe.iris.protocol;
 
 import org.jetbrains.annotations.NotNull;
 
-public abstract class ExecutorBase {
+public abstract class ExecutorBase implements AutoCloseable {
     protected final ProtocolBase protocol;
 
-    public ExecutorBase(@NotNull final ProtocolBase protocol) {
+    protected ExecutorBase(@NotNull final ProtocolBase protocol) {
         this.protocol = protocol;
     }
 
-    public void close() throws Exception { }
+    @Override public void close() throws Exception {}
 }

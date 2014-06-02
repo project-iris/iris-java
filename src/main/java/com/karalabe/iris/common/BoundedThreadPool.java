@@ -14,7 +14,7 @@ import java.util.concurrent.TimeUnit;
 // dropped until previously scheduled ones complete.
 public class BoundedThreadPool {
     private final ExecutorService workers;
-    private final Semaphore capacity;
+    private final Semaphore       capacity;
 
     public BoundedThreadPool(int threads, int bounds) {
         workers = Executors.newFixedThreadPool(threads);
@@ -38,7 +38,7 @@ public class BoundedThreadPool {
     public boolean schedule(Runnable task, int size, int timeout) {
         final long start = System.nanoTime();
         return schedule(() -> {
-            if ((System.nanoTime() - start) / 1000000 < timeout) {
+            if (((System.nanoTime() - start) / 1_000_000) < timeout) {
                 task.run();
             }
         }, size);

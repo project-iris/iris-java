@@ -7,6 +7,7 @@ package com.karalabe.iris;
 
 import com.carrotsearch.junitbenchmarks.AbstractBenchmark;
 import com.carrotsearch.junitbenchmarks.BenchmarkOptions;
+import org.jetbrains.annotations.NotNull;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -16,18 +17,19 @@ import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 
+@SuppressWarnings("JUnitTestNG")
 public class BroadcastTest extends AbstractBenchmark {
     // Service handler for the broadcast tests.
-    private class BroadcastTestHandler implements ServiceHandler {
-        public Connection conn;
-        public Set<String> arrived = Collections.synchronizedSet(new HashSet<>());
-        public Semaphore pending;
+    static class BroadcastTestHandler implements ServiceHandler {
+        final Set<String> arrived = Collections.synchronizedSet(new HashSet<>());
+        Connection connection;
+        Semaphore  pending;
 
-        @Override public void init(final Connection conn) {
-            this.conn = conn;
+        @Override public void init(@NotNull final Connection connection) {
+            this.connection = connection;
         }
 
-        @Override public void handleBroadcast(final byte[] message) {
+        @Override public void handleBroadcast(@NotNull final byte[] message) {
             arrived.add(new String(message, StandardCharsets.UTF_8));
             pending.release(1);
         }
@@ -36,14 +38,14 @@ public class BroadcastTest extends AbstractBenchmark {
     // Tests multiple concurrent client and service broadcasts.
     @BenchmarkOptions(benchmarkRounds = 5, warmupRounds = 10)
     @Test public void concurrentBroadcasts() throws Exception {
-        final int CLIENTS = 25, SERVERS = 25, MESSAGES = 25;
+        final int CLIENT_COUNT = 25, SERVER_COUNT = 25, MESSAGE_COUNT = 25;
 
-        final List<Thread> workers = new ArrayList<>(0);
-        final CyclicBarrier barrier = new CyclicBarrier(CLIENTS + SERVERS + 1);
+        final Collection<Thread> workers = new ArrayList<>(CLIENT_COUNT + SERVER_COUNT);
+        final CyclicBarrier barrier = new CyclicBarrier(CLIENT_COUNT + SERVER_COUNT + 1);
         final List<Exception> errors = Collections.synchronizedList(new ArrayList<>());
 
         // Start up the concurrent broadcasting clients
-        for (int i = 0; i < CLIENTS; i++) {
+        for (int i = 0; i < CLIENT_COUNT; i++) {
             final int client = i;
             final Thread worker = new Thread(() -> {
                 try (final Connection conn = Iris.connect(Config.RELAY_PORT)) {
@@ -51,7 +53,7 @@ public class BroadcastTest extends AbstractBenchmark {
                     barrier.await(Config.PHASE_TIMEOUT, TimeUnit.SECONDS);
 
                     // Send all the client broadcasts
-                    for (int j = 0; j < MESSAGES; j++) {
+                    for (int j = 0; j < MESSAGE_COUNT; j++) {
                         final String message = String.format("client #%d, broadcast %d", client, j);
                         final byte[] messageBlob = message.getBytes(StandardCharsets.UTF_8);
 
@@ -68,38 +70,38 @@ public class BroadcastTest extends AbstractBenchmark {
             workers.add(worker);
         }
         // Start up the concurrent broadcast services
-        for (int i = 0; i < SERVERS; i++) {
+        for (int i = 0; i < SERVER_COUNT; i++) {
             final int server = i;
             final Thread worker = new Thread(() -> {
-                BroadcastTestHandler handler = new BroadcastTestHandler();
+                final BroadcastTestHandler handler = new BroadcastTestHandler();
 
                 try (final Service ignored = Iris.register(Config.RELAY_PORT, Config.CLUSTER_NAME, handler)) {
                     // Wait till all clients and servers connect
-                    handler.pending = new Semaphore((CLIENTS + SERVERS) * MESSAGES);
-                    handler.pending.acquire((CLIENTS + SERVERS) * MESSAGES);
+                    handler.pending = new Semaphore((CLIENT_COUNT + SERVER_COUNT) * MESSAGE_COUNT);
+                    handler.pending.acquire((CLIENT_COUNT + SERVER_COUNT) * MESSAGE_COUNT);
 
                     barrier.await(Config.PHASE_TIMEOUT, TimeUnit.SECONDS);
 
                     // Send all the service broadcasts
-                    for (int j = 0; j < MESSAGES; j++) {
+                    for (int j = 0; j < MESSAGE_COUNT; j++) {
                         final String message = String.format("server #%d, broadcast %d", server, j);
                         final byte[] messageBlob = message.getBytes(StandardCharsets.UTF_8);
 
-                        handler.conn.broadcast(Config.CLUSTER_NAME, messageBlob);
+                        handler.connection.broadcast(Config.CLUSTER_NAME, messageBlob);
                     }
                     barrier.await(Config.PHASE_TIMEOUT, TimeUnit.SECONDS);
 
                     // Wait for all broadcasts to arrive
-                    handler.pending.acquire((CLIENTS + SERVERS) * MESSAGES);
+                    handler.pending.acquire((CLIENT_COUNT + SERVER_COUNT) * MESSAGE_COUNT);
 
-                    for (int j = 0; j < CLIENTS; j++) {
-                        for (int k = 0; k < MESSAGES; k++) {
+                    for (int j = 0; j < CLIENT_COUNT; j++) {
+                        for (int k = 0; k < MESSAGE_COUNT; k++) {
                             final String message = String.format("client #%d, broadcast %d", j, k);
                             Assert.assertTrue(handler.arrived.contains(message));
                         }
                     }
-                    for (int j = 0; j < SERVERS; j++) {
-                        for (int k = 0; k < MESSAGES; k++) {
+                    for (int j = 0; j < SERVER_COUNT; j++) {
+                        for (int k = 0; k < MESSAGE_COUNT; k++) {
                             final String message = String.format("server #%d, broadcast %d", j, k);
                             Assert.assertTrue(handler.arrived.contains(message));
                         }
@@ -117,8 +119,10 @@ public class BroadcastTest extends AbstractBenchmark {
         try {
             barrier.await(Config.PHASE_TIMEOUT, TimeUnit.SECONDS);
             Assert.assertTrue(errors.isEmpty());
+
             barrier.await(Config.PHASE_TIMEOUT, TimeUnit.SECONDS);
             Assert.assertTrue(errors.isEmpty());
+
             barrier.await(Config.PHASE_TIMEOUT, TimeUnit.SECONDS);
             Assert.assertTrue(errors.isEmpty());
         }
@@ -130,44 +134,44 @@ public class BroadcastTest extends AbstractBenchmark {
     }
 
     // Service handler for the thread limited broadcast tests.
-    private class BroadcastLimitTestHandler implements ServiceHandler {
-        public Connection conn;
-        public Set<String> arrived = Collections.synchronizedSet(new HashSet<>());
-        public int sleep;
+    static class BroadcastLimitTestHandler implements ServiceHandler {
+        final Set<String> arrived = Collections.synchronizedSet(new HashSet<>());
+        Connection connection;
+        int        sleep;
 
-        @Override public void init(final Connection conn) {
-            this.conn = conn;
+        @Override public void init(@NotNull final Connection connection) {
+            this.connection = connection;
         }
 
-        @Override public void handleBroadcast(final byte[] message) {
+        @Override public void handleBroadcast(@NotNull final byte[] message) {
             try {
                 Thread.sleep(sleep);
                 arrived.add(new String(message, StandardCharsets.UTF_8));
             }
-            catch (InterruptedException e) { }
+            catch (InterruptedException ignored) { }
         }
     }
 
     // Tests the broadcast thread limitation.
     @BenchmarkOptions(benchmarkRounds = 5, warmupRounds = 10)
     @Test public void threadLimiting() throws Exception {
-        final int MESSAGES = 4, SLEEP = 100;
+        final int MESSAGE_COUNT = 4, SLEEP = 100;
 
         // Create the service handler and limiter
-        BroadcastLimitTestHandler handler = new BroadcastLimitTestHandler();
+        final BroadcastLimitTestHandler handler = new BroadcastLimitTestHandler();
         handler.sleep = SLEEP;
 
-        ServiceLimits limits = new ServiceLimits();
+        final ServiceLimits limits = new ServiceLimits();
         limits.broadcastThreads = 1;
 
         try (final Service ignored = Iris.register(Config.RELAY_PORT, Config.CLUSTER_NAME, handler, limits)) {
             // Send a few broadcasts
-            for (int j = 0; j < MESSAGES; j++) {
-                handler.conn.broadcast(Config.CLUSTER_NAME, new byte[]{(byte) j});
+            for (int j = 0; j < MESSAGE_COUNT; j++) {
+                handler.connection.broadcast(Config.CLUSTER_NAME, new byte[]{(byte) j});
             }
             // Wait for half time and verify that only half was processed
-            Thread.sleep(MESSAGES / 2 * SLEEP + SLEEP / 2);
-            Assert.assertEquals(MESSAGES / 2, handler.arrived.size());
+            Thread.sleep(((MESSAGE_COUNT / 2) * SLEEP) + (SLEEP / 2));
+            Assert.assertEquals(MESSAGE_COUNT / 2, handler.arrived.size());
         }
     }
 
@@ -175,20 +179,20 @@ public class BroadcastTest extends AbstractBenchmark {
     @BenchmarkOptions(benchmarkRounds = 5, warmupRounds = 10)
     @Test public void memoryLimiting() throws Exception {
         // Create the service handler and limiter
-        BroadcastTestHandler handler = new BroadcastTestHandler();
+        final BroadcastTestHandler handler = new BroadcastTestHandler();
         handler.pending = new Semaphore(2);
         handler.pending.acquire(2);
 
-        ServiceLimits limits = new ServiceLimits();
+        final ServiceLimits limits = new ServiceLimits();
         limits.broadcastMemory = 1;
 
         try (final Service ignored = Iris.register(Config.RELAY_PORT, Config.CLUSTER_NAME, handler, limits)) {
             // Check that a 1 byte broadcast passes
-            handler.conn.broadcast(Config.CLUSTER_NAME, new byte[]{0x00});
+            handler.connection.broadcast(Config.CLUSTER_NAME, new byte[]{0x00});
             Assert.assertTrue(handler.pending.tryAcquire(100, TimeUnit.MILLISECONDS));
 
             // Check that a 2 byte broadcast is dropped
-            handler.conn.broadcast(Config.CLUSTER_NAME, new byte[]{0x00, 0x00});
+            handler.connection.broadcast(Config.CLUSTER_NAME, new byte[]{0x00, 0x00});
             Assert.assertFalse(handler.pending.tryAcquire(100, TimeUnit.MILLISECONDS));
         }
     }

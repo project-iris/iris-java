@@ -15,12 +15,12 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class SubscriptionExecutor extends ExecutorBase {
     // Simple container for an individual subscription's state
-    private class Subscription {
+    static class Subscription {
         public TopicHandler      handler; // Callback handler for processing inbound events
         public BoundedThreadPool workers; // Thread pool for limiting the concurrent processing
     }
 
-    private Map<String, Subscription> active = new ConcurrentHashMap<>(0);
+    private final Map<String, Subscription> active = new ConcurrentHashMap<>();
 
     public SubscriptionExecutor(final ProtocolBase protocol) {
         super(protocol);
@@ -28,7 +28,7 @@ public class SubscriptionExecutor extends ExecutorBase {
 
     public void subscribe(final String topic, final TopicHandler handler, final TopicLimits limits) throws IOException {
         // Make sure double subscriptions result in a failure
-        Subscription sub = new Subscription();
+        final Subscription sub = new Subscription();
         synchronized (active) {
             if (active.containsKey(topic)) {
                 throw new IllegalStateException("Already subscribed!");
@@ -39,14 +39,12 @@ public class SubscriptionExecutor extends ExecutorBase {
         sub.handler = handler;
         sub.workers = new BoundedThreadPool(limits.eventThreads, limits.eventMemory);
 
-        protocol.send(OpCode.SUBSCRIBE, () -> {
-            protocol.sendString(topic);
-        });
+        protocol.send(OpCode.SUBSCRIBE, () -> protocol.sendString(topic));
     }
 
     public void unsubscribe(final String topic) throws IOException, InterruptedException {
         // Make sure there's an active subscription
-        Subscription sub = null;
+        final Subscription sub;
         synchronized (active) {
             if (!active.containsKey(topic)) {
                 throw new IllegalStateException("Not subscribed!");
@@ -56,9 +54,7 @@ public class SubscriptionExecutor extends ExecutorBase {
         // Leave the critical section and finish cleanup
         sub.workers.terminate(true);
 
-        protocol.send(OpCode.UNSUBSCRIBE, () -> {
-            protocol.sendString(topic);
-        });
+        protocol.send(OpCode.UNSUBSCRIBE, () -> protocol.sendString(topic));
     }
 
     public void publish(final String topic, final byte[] event) throws IOException {
@@ -72,11 +68,9 @@ public class SubscriptionExecutor extends ExecutorBase {
         final String topic = protocol.receiveString();
         final byte[] event = protocol.receiveBinary();
 
-        Subscription sub = active.get(topic);
+        final Subscription sub = active.get(topic);
         if (sub != null) {
-            sub.workers.schedule(() -> {
-                sub.handler.handleEvent(event);
-            }, event.length);
+            sub.workers.schedule(() -> sub.handler.handleEvent(event), event.length);
         }
     }
 

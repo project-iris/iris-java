@@ -25,7 +25,7 @@ public class ProtocolBase implements AutoCloseable {
 
     public ProtocolBase(final int port) throws IOException {
         socket = new Socket(InetAddress.getLoopbackAddress(), port);
-        socketIn = new DataInputStream(socket.getInputStream());
+        socketIn = new DataInputStream(socket.getInputStream()); // TODO non-buffered input?
         socketOut = new DataOutputStream(new BufferedOutputStream(socket.getOutputStream()));
     }
 
@@ -69,7 +69,7 @@ public class ProtocolBase implements AutoCloseable {
         }
     }
 
-    private boolean hasNextChunk(final long chunk) {
+    private static boolean hasNextChunk(final long chunk) {
         return (chunk & ~VAR_INT_CHUNK_BYTE_MASK) != 0;
     }
 
@@ -77,7 +77,7 @@ public class ProtocolBase implements AutoCloseable {
         long toSend = data;
         while (true) {
             final long chunk = (toSend & VAR_INT_CHUNK_BYTE_MASK);
-            if (hasNextChunk(toSend)) {
+            if (ProtocolBase.hasNextChunk(toSend)) {
                 sendByte((byte) (VAR_INT_MERGE_BIT | chunk));
                 toSend >>>= VAR_INT_CHUNK_BIT_SIZE;
             } else {

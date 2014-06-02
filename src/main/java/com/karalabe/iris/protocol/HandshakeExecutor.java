@@ -25,7 +25,6 @@ public class HandshakeExecutor extends ExecutorBase {
 
     public String handleInit() throws IOException {
         final OpCode opCode = OpCode.valueOf(protocol.receiveByte());
-
         switch (opCode) {
             case INIT: {
                 verifyMagic();
@@ -50,6 +49,4 @@ public class HandshakeExecutor extends ExecutorBase {
             throw new ProtocolException(String.format("Protocol violation, invalid relay magic: %s!", relayMagic));
         }
     }
-
-    @Override public void close() throws Exception { }
 }

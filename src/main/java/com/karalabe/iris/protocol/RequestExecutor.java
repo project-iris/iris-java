@@ -8,28 +8,29 @@ package com.karalabe.iris.protocol;
 import com.karalabe.iris.ServiceHandler;
 import com.karalabe.iris.ServiceLimits;
 import com.karalabe.iris.common.BoundedThreadPool;
+import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
 import java.rmi.RemoteException;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeoutException;
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.LongAdder;
 
 public class RequestExecutor extends ExecutorBase {
-    private class Result {
-        public boolean timeout;
-        public byte[]  reply;
-        public String  error;
+    static class Result {
+        boolean timeout;
+        byte[]  reply;
+        String  error;
     }
 
     private final ServiceHandler    handler; // Callback handler for processing inbound requests
     private final BoundedThreadPool workers; // Thread pool for limiting the concurrent processing
 
-    private final AtomicLong        nextId  = new AtomicLong(0); // Unique identifier for the next request
-    private final Map<Long, Result> pending = new ConcurrentHashMap<>(0); // Result objects for pending requests
+    private final LongAdder         nextId  = new LongAdder(); // Unique identifier for the next request
+    private final Map<Long, Result> pending = new ConcurrentHashMap<>(); // Result objects for pending requests
 
-    public RequestExecutor(final ProtocolBase protocol, final ServiceHandler handler, final ServiceLimits limits) {
+    public RequestExecutor(final ProtocolBase protocol, @Nullable final ServiceHandler handler, final ServiceLimits limits) {
         super(protocol);
 
         this.handler = handler;
@@ -38,14 +39,15 @@ public class RequestExecutor extends ExecutorBase {
 
     public byte[] request(final String cluster, byte[] request, long timeoutMillis) throws IOException, InterruptedException, RemoteException, TimeoutException {
         // Fetch a unique ID for the request
-        final long id = nextId.addAndGet(1);
+        nextId.increment();
+        final long id = nextId.longValue();
 
         // Create a temporary object to store the reply
         final Result result = new Result();
         pending.put(id, result);
 
         try {
-            synchronized (result) {
+            synchronized (result) { // TODO it's a local variable, not shared among threads
                 // Send the request
                 protocol.send(OpCode.REQUEST, () -> {
                     protocol.sendVarint(id);
@@ -70,7 +72,7 @@ public class RequestExecutor extends ExecutorBase {
         }
     }
 
-    public void reply(final long id, final byte[] response, final String error) throws IOException {
+    public void reply(final long id, @Nullable final byte[] response, @Nullable final String error) throws IOException {
         protocol.send(OpCode.REPLY, () -> {
             protocol.sendVarint(id);
             protocol.sendBoolean(error == null);

@@ -1,8 +1,7 @@
 package com.karalabe.iris;
 
-import com.karalabe.iris.callback.CallbackHandlerRegistry;
-import com.karalabe.iris.callback.StaticCallbackHandler;
 import com.karalabe.iris.protocol.*;
+import com.karalabe.iris.protocol.tunnel.TunnelExecutor;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -14,9 +13,8 @@ import java.util.concurrent.TimeoutException;
  * Message relay between the local app and the local iris node.
  **/
 public class Connection implements AutoCloseable {
-    private final ProtocolBase            protocol;
-    private final Thread                  runner;
-    private final CallbackHandlerRegistry callbacks;
+    private final ProtocolBase protocol;
+    private final Thread       runner;
 
     // Application layer fields
     private final ServiceHandler handler;
@@ -27,40 +25,29 @@ public class Connection implements AutoCloseable {
     private final RequestExecutor      requester;
     private final SubscriptionExecutor subscriber;
     private final TeardownExecutor     teardowner;
-
-    //private final TunnelExecutor    tunnelTransfer;
+    private final TunnelExecutor       tunneler;
 
     // Connects to the Iris network as a simple client.
     Connection(int port, @NotNull String clusterName, @Nullable ServiceHandler handler, @Nullable ServiceLimits limits) throws IOException {
         // Load the default service limits if none specified
-        if (limits == null) {
-            limits = new ServiceLimits();
-        }
+        if (limits == null) { limits = new ServiceLimits(); }
 
         this.handler = handler;
 
         protocol = new ProtocolBase(port);
-        callbacks = new CallbackHandlerRegistry();
 
         handshaker = new HandshakeExecutor(protocol);
         broadcaster = new BroadcastExecutor(protocol, handler, limits);
         requester = new RequestExecutor(protocol, handler, limits);
         subscriber = new SubscriptionExecutor(protocol);
         teardowner = new TeardownExecutor(protocol, handler);
-
-        //tunnelTransfer = new TunnelExecutor(protocol);
+        tunneler = new TunnelExecutor(protocol);
 
         handshaker.init(clusterName);
         handshaker.handleInit();
 
-        runner = new Thread(() -> {
-            processMessages();
-        });
+        runner = new Thread(this::processMessages);
         runner.start();
-    }
-
-    public void addCallbackHandler(@NotNull final StaticCallbackHandler callbackHandler) {
-        callbacks.addCallbackHandler(callbackHandler);
     }
 
     public void broadcast(@NotNull final String cluster, @NotNull final byte[] message) throws IOException {
@@ -77,11 +64,9 @@ public class Connection implements AutoCloseable {
         subscribe(topic, handler, null);
     }
 
-    public void subscribe(@NotNull final String topic, @NotNull final TopicHandler handler, TopicLimits limits) throws IOException {
+    public void subscribe(@NotNull final String topic, @NotNull final TopicHandler handler, @Nullable TopicLimits limits) throws IOException {
         Validators.validateTopic(topic);
-        if (limits == null) {
-            limits = new TopicLimits();
-        }
+        if (limits == null) { limits = new TopicLimits(); }
         subscriber.subscribe(topic, handler, limits);
     }
 
@@ -96,7 +81,7 @@ public class Connection implements AutoCloseable {
     }
 /*
     @Override public void tunnel(@NotNull final String clusterName, final long timeOutMillis, TunnelCallbackHandlers callbackHandlers) throws IOException {
-        tunnelTransfer.tunnel(clusterName, timeOutMillis, callbackHandlers);
+        tunneler.tunnel(clusterName, timeOutMillis, callbackHandlers);
     }*/
 
     private void processMessages() {
@@ -120,19 +105,19 @@ public class Connection implements AutoCloseable {
                         break;
 
                     case TUNNEL_BUILD:
-                        //tunnelTransfer.handleTunnelBuild();
+                        //tunneler.handleTunnelBuild();
                         break;
                     case TUNNEL_CONFIRM:
-                        //tunnelTransfer.handleTunnelConfirm();
+                        //tunneler.handleTunnelConfirm();
                         break;
                     case TUNNEL_ALLOW:
-                        //tunnelTransfer.handleTunnelAllow();
+                        //tunneler.handleTunnelAllow();
                         break;
                     case TUNNEL_TRANSFER:
-                        //tunnelTransfer.handleTunnelTransfer();
+                        //tunneler.handleTunnelTransfer();
                         break;
                     case TUNNEL_CLOSE:
-                        //tunnelTransfer.handleTunnelClose();
+                        //tunneler.handleTunnelClose();
                         break;
 
                     case CLOSE:

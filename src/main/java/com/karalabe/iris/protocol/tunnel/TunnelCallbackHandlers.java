@@ -1,13 +1,11 @@
 package com.karalabe.iris.protocol.tunnel;
 
-import com.karalabe.iris.callback.CallbackHandler;
-import com.karalabe.iris.callback.InstanceCallbackHandler;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.IOException;
 
-// TODO should probably be segregated
-public interface TunnelCallbackHandlers extends InstanceCallbackHandler, CallbackHandler {
+// FIXME
+public interface TunnelCallbackHandlers {
     default @NotNull byte[] handleDrop() throws IOException {
         throw new IllegalStateException("No drop handler provided!");
     }

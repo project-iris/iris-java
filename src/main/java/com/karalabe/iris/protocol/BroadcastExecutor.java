@@ -8,6 +8,7 @@ package com.karalabe.iris.protocol;
 import com.karalabe.iris.ServiceHandler;
 import com.karalabe.iris.ServiceLimits;
 import com.karalabe.iris.common.BoundedThreadPool;
+import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
 
@@ -15,7 +16,7 @@ public class BroadcastExecutor extends ExecutorBase {
     private final ServiceHandler    handler; // Callback handler for processing inbound broadcasts
     private final BoundedThreadPool workers; // Thread pool for limiting the concurrent processing
 
-    public BroadcastExecutor(final ProtocolBase protocol, final ServiceHandler handler, final ServiceLimits limits) {
+    public BroadcastExecutor(final ProtocolBase protocol, @Nullable final ServiceHandler handler, final ServiceLimits limits) {
         super(protocol);
 
         this.handler = handler;
@@ -31,9 +32,7 @@ public class BroadcastExecutor extends ExecutorBase {
 
     public void handleBroadcast() throws IOException {
         final byte[] message = protocol.receiveBinary();
-        workers.schedule(() -> {
-            handler.handleBroadcast(message);
-        }, message.length);
+        workers.schedule(() -> handler.handleBroadcast(message), message.length);
     }
 
     @Override public void close() throws Exception {

@@ -7,9 +7,7 @@ import org.jetbrains.annotations.NotNull;
 public class TunnelExecutor extends ExecutorBase {
     public TunnelExecutor(@NotNull final ProtocolBase protocol) { super(protocol); }
 
-    @Override public void close() throws Exception {
-
-    }
+    @Override public void close() throws Exception {}
 
    /* @Override public void tunnel(@NotNull final String clusterName, final long timeOutMillis, TunnelCallbackHandlers callbackHandlers) throws IOException {
         Validators.validateRemoteClusterName(clusterName);

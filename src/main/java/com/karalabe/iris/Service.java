@@ -13,24 +13,24 @@ import java.io.IOException;
 
 // Service instance belonging to a particular cluster in the network.
 public class Service implements AutoCloseable {
-    private Connection conn; // Network connection to the local Iris relay
+    private final Connection connection; // Network connection to the local Iris relay
 
     // Connects to the Iris network and registers a new service instance as a member of the
     // specified service cluster, overriding the default quality of service limits.
     Service(final int port, @NotNull final String cluster, @NotNull final ServiceHandler handler, @Nullable final ServiceLimits limits) throws IOException, InterruptedException {
         Validators.validateLocalClusterName(cluster);
 
-        conn = new Connection(port, cluster, handler, limits);
+        connection = new Connection(port, cluster, handler, limits);
         try {
-            handler.init(conn);
+            handler.init(connection);
         }
         catch (Exception e) {
-            conn.close();
+            connection.close();
         }
     }
 
     // Unregisters the service instance from the Iris network.
     @Override public void close() throws IOException, InterruptedException {
-        conn.close();
+        connection.close();
     }
 }
