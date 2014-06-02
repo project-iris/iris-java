@@ -1,5 +1,7 @@
 package com.karalabe.iris;
 
+import com.carrotsearch.junitbenchmarks.AbstractBenchmark;
+import com.carrotsearch.junitbenchmarks.BenchmarkOptions;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -8,7 +10,7 @@ import java.util.*;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.TimeUnit;
 
-public class BroadcastTest {
+public class BroadcastTest extends AbstractBenchmark {
     private class BroadcastTestHandler implements ServiceHandler {
         public Connection conn;
         public Set<String> arrived = Collections.synchronizedSet(new HashSet<>());
@@ -22,6 +24,7 @@ public class BroadcastTest {
         }
     }
 
+    @BenchmarkOptions(benchmarkRounds = 1, warmupRounds = 0)
     @Test public void concurrentBroadcasts() throws Exception {
         final int CLIENTS = 25, SERVERS = 25, MESSAGES = 25;
 

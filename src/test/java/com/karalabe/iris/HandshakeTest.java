@@ -1,12 +1,13 @@
 package com.karalabe.iris;
 
+import com.carrotsearch.junitbenchmarks.AbstractBenchmark;
 import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.IOException;
 
 @SuppressWarnings({"resource", "JUnitTestNG", "ProhibitedExceptionDeclared", "UnqualifiedStaticUsage"})
-public class HandshakeTest {
+public class HandshakeTest extends AbstractBenchmark {
     @Test public void connection() throws Exception {
         try (final Connection ignored = new Connection(Config.RELAY_PORT)) {
         }
