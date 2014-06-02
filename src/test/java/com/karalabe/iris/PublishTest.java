@@ -55,7 +55,7 @@ public class PublishTest extends AbstractBenchmark {
         for (int i = 0; i < CLIENTS; i++) {
             final int client = i;
             final Thread worker = new Thread(() -> {
-                try (final Connection conn = new Connection(Config.RELAY_PORT)) {
+                try (final Connection conn = Iris.connect(Config.RELAY_PORT)) {
                     // Wait till all clients and servers connect
                     barrier.await(Config.PHASE_TIMEOUT, TimeUnit.SECONDS);
 
@@ -101,7 +101,7 @@ public class PublishTest extends AbstractBenchmark {
             final Thread worker = new Thread(() -> {
                 PublishTestServiceHandler handler = new PublishTestServiceHandler();
 
-                try (final Service ignored = new Service(Config.RELAY_PORT, Config.CLUSTER_NAME, handler)) {
+                try (final Service ignored = Iris.register(Config.RELAY_PORT, Config.CLUSTER_NAME, handler)) {
                     // Wait till all clients and servers connect
                     barrier.await(Config.PHASE_TIMEOUT, TimeUnit.SECONDS);
 

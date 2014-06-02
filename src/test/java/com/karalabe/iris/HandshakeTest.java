@@ -14,7 +14,7 @@ import java.io.IOException;
 @SuppressWarnings({"resource", "JUnitTestNG", "ProhibitedExceptionDeclared", "UnqualifiedStaticUsage"})
 public class HandshakeTest extends AbstractBenchmark {
     @Test public void connection() throws Exception {
-        try (final Connection ignored = new Connection(Config.RELAY_PORT)) {
+        try (final Connection ignored = Iris.connect(Config.RELAY_PORT)) {
         }
         catch (IOException e) {
             Assert.fail(e.getMessage());
@@ -22,7 +22,7 @@ public class HandshakeTest extends AbstractBenchmark {
     }
 
     @Test public void service() throws Exception {
-        try (final Service ignored = new Service(Config.RELAY_PORT, Config.CLUSTER_NAME, new ServiceHandler() {})) {
+        try (final Service ignored = Iris.register(Config.RELAY_PORT, Config.CLUSTER_NAME, new ServiceHandler() {})) {
         }
         catch (IOException e) {
             Assert.fail(e.getMessage());

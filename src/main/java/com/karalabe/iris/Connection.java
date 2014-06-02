@@ -4,6 +4,7 @@ import com.karalabe.iris.callback.CallbackHandlerRegistry;
 import com.karalabe.iris.callback.StaticCallbackHandler;
 import com.karalabe.iris.protocol.*;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
 import java.util.concurrent.TimeoutException;
@@ -26,15 +27,10 @@ public class Connection implements AutoCloseable {
     private final SubscriptionExecutor subscriber;
     private final TeardownExecutor     teardowner;
 
-    //private final PublishExecutor   publishTransfer;
-    //private final SubscribeExecutor subscribeTransfer;
     //private final TunnelExecutor    tunnelTransfer;
 
-    public Connection(final int relayPort) throws IOException {
-        this(relayPort, "", null, null);
-    }
-
-    Connection(int port, @NotNull String clusterName, ServiceHandler handler, ServiceLimits limits) throws IOException {
+    // Connects to the Iris network as a simple client.
+    Connection(int port, @NotNull String clusterName, @Nullable ServiceHandler handler, @Nullable ServiceLimits limits) throws IOException {
         // Load the default service limits if none specified
         if (limits == null) {
             limits = new ServiceLimits();
