@@ -5,12 +5,12 @@
 // For details please see http://iris.karalabe.com/downloads#License
 package com.karalabe.iris.protocol;
 
-import com.karalabe.iris.RemoteException;
 import com.karalabe.iris.ServiceHandler;
 import com.karalabe.iris.ServiceLimits;
 import com.karalabe.iris.common.BoundedThreadPool;
 
 import java.io.IOException;
+import java.rmi.RemoteException;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeoutException;

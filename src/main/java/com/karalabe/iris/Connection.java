@@ -7,6 +7,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
+import java.rmi.RemoteException;
 import java.util.concurrent.TimeoutException;
 
 /*
@@ -47,8 +48,6 @@ public class Connection implements AutoCloseable {
         subscriber = new SubscriptionExecutor(protocol);
         teardowner = new TeardownExecutor(protocol, handler);
 
-        //publishTransfer = new PublishExecutor(protocol);
-        //subscribeTransfer = new SubscribeExecutor(protocol);
         //tunnelTransfer = new TunnelExecutor(protocol);
 
         handshaker.init(clusterName);
