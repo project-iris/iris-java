@@ -16,6 +16,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class RequestTest extends AbstractBenchmark {
     // Service handler for the request/reply tests.
@@ -105,6 +106,89 @@ public class RequestTest extends AbstractBenchmark {
             for (Thread worker : workers) {
                 worker.join();
             }
+        }
+    }
+
+    // Service handler for the thread limited request tests.
+    private class RequestLimitTestHandler implements ServiceHandler {
+        public Connection conn;
+        public int        sleep;
+
+        @Override public void init(final Connection conn) {
+            this.conn = conn;
+        }
+
+        @Override public byte[] handleRequest(final byte[] request) {
+            try {
+                Thread.sleep(sleep);
+                return request;
+            }
+            catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+        }
+    }
+
+    // Tests the request thread limitation.
+    @BenchmarkOptions(benchmarkRounds = 5, warmupRounds = 10)
+    @Test public void threadLimiting() throws Exception {
+        final int REQUESTS = 4, SLEEP = 100;
+
+        // Create the service handler and limiter
+        RequestLimitTestHandler handler = new RequestLimitTestHandler();
+        handler.sleep = SLEEP;
+
+        ServiceLimits limits = new ServiceLimits();
+        limits.requestThreads = 1;
+
+        try (final Service ignored = new Service(Config.RELAY_PORT, Config.CLUSTER_NAME, handler, limits)) {
+            // Start a batch of requesters
+            AtomicInteger done = new AtomicInteger(0);
+            for (int j = 0; j < REQUESTS; j++) {
+                new Thread(() -> {
+                    try {
+                        handler.conn.request(Config.CLUSTER_NAME, new byte[]{0x00}, 1000);
+                    }
+                    catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                    finally {
+                        done.addAndGet(1);
+                    }
+                }).start();
+            }
+            // Wait for half time and verify that only half was processed
+            Thread.sleep(REQUESTS / 2 * SLEEP + SLEEP / 2);
+            Assert.assertEquals(REQUESTS / 2, done.get());
+
+            // Wait for the rest to complete
+            Thread.sleep(REQUESTS / 2 * SLEEP + SLEEP / 2);
+            Assert.assertEquals(REQUESTS, done.get());
+        }
+    }
+
+    // Tests the request memory limitation.
+    @BenchmarkOptions(benchmarkRounds = 5, warmupRounds = 10)
+    @Test public void memoryLimiting() throws Exception {
+        // Create the service handler and limiter
+        RequestTestHandler handler = new RequestTestHandler();
+        ServiceLimits limits = new ServiceLimits();
+        limits.requestMemory = 1;
+
+        try (final Service ignored = new Service(Config.RELAY_PORT, Config.CLUSTER_NAME, handler, limits)) {
+            // Check that a 1 byte request succeeds
+            try {
+                handler.conn.request(Config.CLUSTER_NAME, new byte[]{0x00}, 1000);
+            }
+            catch (Exception e) {
+                Assert.fail();
+            }
+            // Check that a 2 byte request fails
+            try {
+                handler.conn.request(Config.CLUSTER_NAME, new byte[]{0x00, 0x00}, 1000);
+                Assert.fail();
+            }
+            catch (Exception e) { }
         }
     }
 }
