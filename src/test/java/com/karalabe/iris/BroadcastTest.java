@@ -128,4 +128,46 @@ public class BroadcastTest extends AbstractBenchmark {
             }
         }
     }
+
+    // Service handler for the thread limited broadcast tests.
+    private class BroadcastLimitTestHandler implements ServiceHandler {
+        public Connection conn;
+        public Set<String> arrived = Collections.synchronizedSet(new HashSet<>());
+        public int sleep;
+
+        @Override public void init(final Connection conn) {
+            this.conn = conn;
+        }
+
+        @Override public void handleBroadcast(final byte[] message) {
+            try {
+                Thread.sleep(sleep);
+                arrived.add(new String(message, StandardCharsets.UTF_8));
+            }
+            catch (InterruptedException e) { }
+        }
+    }
+
+    // Tests multiple concurrent client and service broadcasts.
+    @BenchmarkOptions(benchmarkRounds = 5, warmupRounds = 10)
+    @Test public void threadLimiting() throws Exception {
+        final int MESSAGES = 4, SLEEP = 100;
+
+        // Create the service handler and limiter
+        BroadcastLimitTestHandler handler = new BroadcastLimitTestHandler();
+        handler.sleep = SLEEP;
+
+        ServiceLimits limits = new ServiceLimits();
+        limits.broadcastThreads = 1;
+
+        try (final Service ignored = new Service(Config.RELAY_PORT, Config.CLUSTER_NAME, handler, limits)) {
+            // Send a few broadcasts
+            for (int j = 0; j < MESSAGES; j++) {
+                handler.conn.broadcast(Config.CLUSTER_NAME, new byte[]{(byte) j});
+            }
+            // Wait for half time and verify that only half was processed
+            Thread.sleep(MESSAGES / 2 * SLEEP + SLEEP / 2);
+            Assert.assertEquals(MESSAGES / 2, handler.arrived.size());
+        }
+    }
 }
