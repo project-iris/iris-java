@@ -17,6 +17,10 @@ public class TeardownExecutor extends ExecutorBase {
         this.handler = handler;
     }
 
+    public void teardown() throws IOException {
+        protocol.send(OpCode.CLOSE, () -> {});
+    }
+
     public void handleTeardown() throws IOException {
         final String reason = protocol.receiveString();
         if (!reason.isEmpty()) {

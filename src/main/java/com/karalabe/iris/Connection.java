@@ -13,6 +13,7 @@ import java.util.concurrent.TimeoutException;
  **/
 public class Connection implements AutoCloseable {
     private final ProtocolBase            protocol;
+    private final Thread                  runner;
     private final CallbackHandlerRegistry callbacks;
 
     // Application layer fields
@@ -55,9 +56,10 @@ public class Connection implements AutoCloseable {
         handshaker.init(clusterName);
         handshaker.handleInit();
 
-        new Thread(() -> {
+        runner = new Thread(() -> {
             processMessages();
-        }).start();
+        });
+        runner.start();
     }
 
     public void addCallbackHandler(@NotNull final StaticCallbackHandler callbackHandler) {
@@ -136,10 +138,11 @@ public class Connection implements AutoCloseable {
             }
         }
         catch (Exception e) {
+            e.printStackTrace();
         }
         finally {
             try {
-                close();
+                protocol.close();
             }
             catch (IOException e) {
                 e.printStackTrace();
@@ -147,11 +150,10 @@ public class Connection implements AutoCloseable {
         }
     }
 
-    private void sendClose() throws IOException {
-        protocol.send(OpCode.TUNNEL_CLOSE, () -> {});
-    }
-
-    @Override public void close() throws IOException {
-        protocol.close();
+    @Override public void close() throws IOException, InterruptedException {
+        if (runner != null) {
+            teardowner.teardown();
+            runner.join();
+        }
     }
 }

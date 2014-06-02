@@ -37,6 +37,7 @@ public interface ServiceHandler {
 
     // Callback notifying the service that the local relay dropped its connection.
     default void handleDrop(@NotNull final RuntimeException e) {
+        e.printStackTrace();
         throw e;
     }
 }
