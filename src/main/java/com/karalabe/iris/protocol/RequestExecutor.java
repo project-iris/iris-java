@@ -53,7 +53,9 @@ public class RequestExecutor extends ExecutorBase {
                 protocol.sendVarint(timeoutMillis);
             });
             // Wait until a reply arrives
-            result.wait();
+            synchronized (result) {
+                result.wait();
+            }
             if (result.timeout) {
                 throw new TimeoutException("Request timed out!");
             } else if (result.error != null) {
@@ -67,9 +69,9 @@ public class RequestExecutor extends ExecutorBase {
         }
     }
 
-    public void reply(final long requestId, final byte[] response, final String error) throws IOException {
+    public void reply(final long id, final byte[] response, final String error) throws IOException {
         protocol.send(OpCode.REPLY, () -> {
-            protocol.sendVarint(requestId);
+            protocol.sendVarint(id);
             protocol.sendBoolean(error == null);
             if (error == null) {
                 protocol.sendBinary(response);
@@ -124,7 +126,9 @@ public class RequestExecutor extends ExecutorBase {
             }
         }
         // Wake the origin thread
-        result.notify();
+        synchronized (result) {
+            result.notify();
+        }
     }
 
     @Override public void close() throws Exception {
