@@ -2,6 +2,7 @@ package com.karalabe.iris.protocol;
 
 import org.jetbrains.annotations.NotNull;
 
+import java.io.BufferedOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
@@ -18,17 +19,14 @@ public class ProtocolBase implements AutoCloseable {
 
     private static final Charset DEFAULT_CHARSET = StandardCharsets.UTF_8;
 
-    @NotNull private final   Socket               socket;
-    @NotNull protected final DataInputStream      socketIn;
-    @NotNull protected final DataOutputStream     socketOut;
+    @NotNull private final   Socket           socket;
+    @NotNull protected final DataInputStream  socketIn;
+    @NotNull protected final DataOutputStream socketOut;
 
     public ProtocolBase(final int port) throws IOException {
         socket = new Socket(InetAddress.getLoopbackAddress(), port);
         socketIn = new DataInputStream(socket.getInputStream());
-        socketOut = new DataOutputStream(socket.getOutputStream());
-
-        // TODO: Why doesn't this version flush?!?
-        // socketOut = new DataOutputStream(new BufferedOutputStream(socket.getOutputStream()));
+        socketOut = new DataOutputStream(new BufferedOutputStream(socket.getOutputStream()));
     }
 
     @FunctionalInterface public interface Executable {

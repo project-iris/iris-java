@@ -38,24 +38,25 @@ public class RequestExecutor extends ExecutorBase {
 
     public byte[] request(final String cluster, byte[] request, long timeoutMillis) throws IOException, InterruptedException, RemoteException, TimeoutException {
         // Fetch a unique ID for the request
-        final Long id = nextId.addAndGet(1);
+        final long id = nextId.addAndGet(1);
 
         // Create a temporary object to store the reply
         final Result result = new Result();
         pending.put(id, result);
 
         try {
-            // Send the request
-            protocol.send(OpCode.REQUEST, () -> {
-                protocol.sendVarint(id);
-                protocol.sendString(cluster);
-                protocol.sendBinary(request);
-                protocol.sendVarint(timeoutMillis);
-            });
-            // Wait until a reply arrives
             synchronized (result) {
+                // Send the request
+                protocol.send(OpCode.REQUEST, () -> {
+                    protocol.sendVarint(id);
+                    protocol.sendString(cluster);
+                    protocol.sendBinary(request);
+                    protocol.sendVarint(timeoutMillis);
+                });
+                // Wait until a reply arrives
                 result.wait();
             }
+
             if (result.timeout) {
                 throw new TimeoutException("Request timed out!");
             } else if (result.error != null) {
