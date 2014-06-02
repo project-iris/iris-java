@@ -36,21 +36,21 @@ public class RequestTest extends AbstractBenchmark {
     @Test public void concurrentRequests() throws Exception {
         final int CLIENTS = 25, SERVERS = 25, REQUESTS = 25;
 
+        final List<Thread> workers = new ArrayList<>(0);
         final CyclicBarrier barrier = new CyclicBarrier(CLIENTS + SERVERS + 1);
         final List<Exception> errors = Collections.synchronizedList(new ArrayList<>());
 
         // Start up the concurrent requesting clients
         for (int i = 0; i < CLIENTS; i++) {
             final int client = i;
-
-            new Thread(() -> {
+            final Thread worker = new Thread(() -> {
                 try (final Connection conn = new Connection(Config.RELAY_PORT)) {
                     // Wait till all clients and servers connect
                     barrier.await(Config.PHASE_TIMEOUT, TimeUnit.SECONDS);
 
                     // Request from the service cluster
                     for (int j = 0; j < REQUESTS; j++) {
-                        final String request = String.format("client #%d, broadcast %d", client, j);
+                        final String request = String.format("client #%d, request %d", client, j);
                         final byte[] requestBlob = request.getBytes(StandardCharsets.UTF_8);
 
                         final byte[] replyBlob = conn.request(Config.CLUSTER_NAME, requestBlob, 1000);
@@ -63,22 +63,23 @@ public class RequestTest extends AbstractBenchmark {
                 catch (Exception e) {
                     errors.add(e);
                 }
-            }).start();
+            });
+            worker.start();
+            workers.add(worker);
         }
         // Start up the concurrent requesting services
         for (int i = 0; i < SERVERS; i++) {
             final int server = i;
-
-            new Thread(() -> {
+            final Thread worker = new Thread(() -> {
                 RequestTestHandler handler = new RequestTestHandler();
 
-                try (final Service serv = new Service(Config.RELAY_PORT, Config.CLUSTER_NAME, handler)) {
+                try (final Service ignored = new Service(Config.RELAY_PORT, Config.CLUSTER_NAME, handler)) {
                     // Wait till all clients and servers connect
                     barrier.await(Config.PHASE_TIMEOUT, TimeUnit.SECONDS);
 
                     // Request from the service cluster
                     for (int j = 0; j < REQUESTS; j++) {
-                        final String request = String.format("server #%d, broadcast %d", server, j);
+                        final String request = String.format("server #%d, request %d", server, j);
                         final byte[] requestBlob = request.getBytes(StandardCharsets.UTF_8);
 
                         final byte[] replyBlob = handler.conn.request(Config.CLUSTER_NAME, requestBlob, 1000);
@@ -89,12 +90,21 @@ public class RequestTest extends AbstractBenchmark {
                 catch (Exception e) {
                     errors.add(e);
                 }
-            }).start();
+            });
+            worker.start();
+            workers.add(worker);
         }
         // Schedule the parallel operations
-        barrier.await(Config.PHASE_TIMEOUT, TimeUnit.SECONDS);
-        Assert.assertTrue(errors.isEmpty());
-        barrier.await(Config.PHASE_TIMEOUT, TimeUnit.SECONDS);
-        Assert.assertTrue(errors.isEmpty());
+        try {
+            barrier.await(Config.PHASE_TIMEOUT, TimeUnit.SECONDS);
+            Assert.assertTrue(errors.isEmpty());
+            barrier.await(Config.PHASE_TIMEOUT, TimeUnit.SECONDS);
+            Assert.assertTrue(errors.isEmpty());
+        }
+        finally {
+            for (Thread worker : workers) {
+                worker.join();
+            }
+        }
     }
 }

@@ -38,14 +38,14 @@ public class BroadcastTest extends AbstractBenchmark {
     @Test public void concurrentBroadcasts() throws Exception {
         final int CLIENTS = 25, SERVERS = 25, MESSAGES = 25;
 
+        final List<Thread> workers = new ArrayList<>(0);
         final CyclicBarrier barrier = new CyclicBarrier(CLIENTS + SERVERS + 1);
         final List<Exception> errors = Collections.synchronizedList(new ArrayList<>());
 
         // Start up the concurrent broadcasting clients
         for (int i = 0; i < CLIENTS; i++) {
             final int client = i;
-
-            new Thread(() -> {
+            final Thread worker = new Thread(() -> {
                 try (final Connection conn = new Connection(Config.RELAY_PORT)) {
                     // Wait till all clients and servers connect
                     barrier.await(Config.PHASE_TIMEOUT, TimeUnit.SECONDS);
@@ -63,13 +63,14 @@ public class BroadcastTest extends AbstractBenchmark {
                 catch (Exception e) {
                     errors.add(e);
                 }
-            }).start();
+            });
+            worker.start();
+            workers.add(worker);
         }
         // Start up the concurrent broadcast services
         for (int i = 0; i < SERVERS; i++) {
             final int server = i;
-
-            new Thread(() -> {
+            final Thread worker = new Thread(() -> {
                 BroadcastTestHandler handler = new BroadcastTestHandler();
 
                 try (final Service serv = new Service(Config.RELAY_PORT, Config.CLUSTER_NAME, handler)) {
@@ -108,14 +109,23 @@ public class BroadcastTest extends AbstractBenchmark {
                 catch (Exception e) {
                     errors.add(e);
                 }
-            }).start();
+            });
+            worker.start();
+            workers.add(worker);
         }
         // Schedule the parallel operations
-        barrier.await(Config.PHASE_TIMEOUT, TimeUnit.SECONDS);
-        Assert.assertTrue(errors.isEmpty());
-        barrier.await(Config.PHASE_TIMEOUT, TimeUnit.SECONDS);
-        Assert.assertTrue(errors.isEmpty());
-        barrier.await(Config.PHASE_TIMEOUT, TimeUnit.SECONDS);
-        Assert.assertTrue(errors.isEmpty());
+        try {
+            barrier.await(Config.PHASE_TIMEOUT, TimeUnit.SECONDS);
+            Assert.assertTrue(errors.isEmpty());
+            barrier.await(Config.PHASE_TIMEOUT, TimeUnit.SECONDS);
+            Assert.assertTrue(errors.isEmpty());
+            barrier.await(Config.PHASE_TIMEOUT, TimeUnit.SECONDS);
+            Assert.assertTrue(errors.isEmpty());
+        }
+        finally {
+            for (Thread worker : workers) {
+                worker.join();
+            }
+        }
     }
 }
