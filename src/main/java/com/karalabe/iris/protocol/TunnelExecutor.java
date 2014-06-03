@@ -1,7 +1,5 @@
-package com.karalabe.iris.protocol.tunnel;
+package com.karalabe.iris.protocol;
 
-import com.karalabe.iris.protocol.ExecutorBase;
-import com.karalabe.iris.protocol.ProtocolBase;
 import org.jetbrains.annotations.NotNull;
 
 public class TunnelExecutor extends ExecutorBase {

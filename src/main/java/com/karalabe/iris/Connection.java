@@ -1,7 +1,7 @@
 package com.karalabe.iris;
 
 import com.karalabe.iris.protocol.*;
-import com.karalabe.iris.protocol.tunnel.TunnelExecutor;
+import com.karalabe.iris.protocol.TunnelExecutor;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -65,24 +65,25 @@ public class Connection implements AutoCloseable {
     }
 
     public void subscribe(@NotNull final String topic, @NotNull final TopicHandler handler, @Nullable TopicLimits limits) throws IOException {
-        Validators.validateTopic(topic);
+        Validators.validateTopicName(topic);
         if (limits == null) { limits = new TopicLimits(); }
         subscriber.subscribe(topic, handler, limits);
     }
 
     public void publish(@NotNull final String topic, @NotNull final byte[] event) throws IOException {
-        Validators.validateTopic(topic);
+        Validators.validateTopicName(topic);
         subscriber.publish(topic, event);
     }
 
     public void unsubscribe(@NotNull final String topic) throws IOException, InterruptedException {
-        Validators.validateTopic(topic);
+        Validators.validateTopicName(topic);
         subscriber.unsubscribe(topic);
     }
-/*
-    @Override public void tunnel(@NotNull final String clusterName, final long timeOutMillis, TunnelCallbackHandlers callbackHandlers) throws IOException {
-        tunneler.tunnel(clusterName, timeOutMillis, callbackHandlers);
-    }*/
+
+    public Tunnel tunnel(@NotNull final String cluster, final long timeout) throws IOException {
+        Validators.validateRemoteClusterName(cluster);
+        return tunneler.tunnel(cluster, timeout);
+    }
 
     private void processMessages() {
         try {

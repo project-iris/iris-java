@@ -2,29 +2,27 @@ package com.karalabe.iris.protocol;
 
 import org.jetbrains.annotations.NotNull;
 
-public final class Validators {
+import java.util.regex.Pattern;
 
-    public static final String FEDERATION_SEPARATOR = ":";
+public final class Validators {
+    private static final Pattern localClusterPattern  = Pattern.compile("[^:]*");
+    private static final Pattern remoteClusterPattern = Pattern.compile("([^:]+:)?[^:]+");
 
     private Validators() {}
 
-    public static void validateLocalClusterName(@NotNull final String clusterName) {
-        if (clusterName.contains(FEDERATION_SEPARATOR)) {
-            throw new IllegalArgumentException("Service name cannot contain colon!");
+    public static void validateLocalClusterName(@NotNull final String cluster) {
+        if (!localClusterPattern.matcher(cluster).matches()) {
+            throw new IllegalArgumentException("Invalid local cluster name!");
         }
     }
 
-    public static void validateRemoteClusterName(@NotNull final String clusterName) {
-        if (clusterName.isEmpty()) {
-            throw new IllegalArgumentException("Empty cluster name!");
+    public static void validateRemoteClusterName(@NotNull final String cluster) {
+        if (!remoteClusterPattern.matcher(cluster).matches()) {
+            throw new IllegalArgumentException("Invalid remote cluster name!");
         }
     }
 
-    public static void validateTopic(@NotNull final String topic) {
+    public static void validateTopicName(@NotNull final String topic) {
         if (topic.isEmpty()) { throw new IllegalArgumentException("Empty topic name!"); }
-    }
-
-    public static void validateMessage(@NotNull final byte[] message) {
-        if (message.length == 0) { throw new IllegalArgumentException("Empty message!"); }
     }
 }
