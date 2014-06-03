@@ -9,6 +9,7 @@ import com.karalabe.iris.ServiceHandler;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
+import java.rmi.RemoteException;
 
 public class TeardownExecutor extends ExecutorBase {
     private final ServiceHandler handler; // Callback handler for processing out of bound drops
@@ -25,7 +26,7 @@ public class TeardownExecutor extends ExecutorBase {
     public void handleTeardown() throws IOException {
         final String reason = protocol.receiveString();
         if (!reason.isEmpty()) {
-            handler.handleDrop(new IllegalStateException(reason));
+            handler.handleDrop(new RemoteException(reason));
         }
     }
 }
