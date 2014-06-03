@@ -41,7 +41,7 @@ public class Connection implements AutoCloseable {
         requester = new RequestExecutor(protocol, handler, limits);
         subscriber = new SubscriptionExecutor(protocol);
         teardowner = new TeardownExecutor(protocol, handler);
-        tunneler = new TunnelExecutor(protocol);
+        tunneler = new TunnelExecutor(protocol, handler);
 
         handshaker.init(clusterName);
         handshaker.handleInit();
@@ -80,9 +80,9 @@ public class Connection implements AutoCloseable {
         subscriber.unsubscribe(topic);
     }
 
-    public Tunnel tunnel(@NotNull final String cluster, final long timeout) throws IOException {
+    public Tunnel tunnel(@NotNull final String cluster, final long timeout) throws IOException, TimeoutException, InterruptedException {
         Validators.validateRemoteClusterName(cluster);
-        return tunneler.tunnel(cluster, timeout);
+        return new Tunnel(tunneler.tunnel(cluster, timeout));
     }
 
     private void processMessages() {
@@ -106,10 +106,10 @@ public class Connection implements AutoCloseable {
                         break;
 
                     case TUNNEL_BUILD:
-                        //tunneler.handleTunnelBuild();
+                        tunneler.handleTunnelInit();
                         break;
                     case TUNNEL_CONFIRM:
-                        //tunneler.handleTunnelConfirm();
+                        tunneler.handleTunnelConfirm();
                         break;
                     case TUNNEL_ALLOW:
                         //tunneler.handleTunnelAllow();
@@ -126,7 +126,7 @@ public class Connection implements AutoCloseable {
                         return;
 
                     default:
-                        throw new IllegalStateException(String.format("Illegal %s received: '%s'!", OpCode.class.getSimpleName(), opCode));
+                        throw new RemoteException(String.format("Illegal %s received: '%s'!", OpCode.class.getSimpleName(), opCode));
                 }
             }
         }

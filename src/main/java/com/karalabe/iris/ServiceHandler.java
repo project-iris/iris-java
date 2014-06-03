@@ -26,7 +26,12 @@ public interface ServiceHandler {
 
     // Callback invoked whenever a tunnel designated to the service's cluster is constructed from a remote node to this particular instance.
     default void handleTunnel(@NotNull final Tunnel tunnel) {
-        tunnel.close();
+        try {
+            tunnel.close();
+        }
+        catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     // Callback notifying the service that the local relay dropped its connection.

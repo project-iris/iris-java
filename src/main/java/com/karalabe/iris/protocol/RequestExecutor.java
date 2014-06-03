@@ -18,7 +18,7 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.LongAdder;
 
 public class RequestExecutor extends ExecutorBase {
-    static class Result {
+    private static class Result {
         boolean timeout;
         byte[]  reply;
         String  error;
@@ -28,7 +28,7 @@ public class RequestExecutor extends ExecutorBase {
     private final BoundedThreadPool workers; // Thread pool for limiting the concurrent processing
 
     private final LongAdder         nextId  = new LongAdder(); // Unique identifier for the next request
-    private final Map<Long, Result> pending = new ConcurrentHashMap<>(); // Result objects for pending requests
+    private final Map<Long, Result> pending = new ConcurrentHashMap<>(128); // Result objects for pending requests
 
     public RequestExecutor(final ProtocolBase protocol, @Nullable final ServiceHandler handler, final ServiceLimits limits) {
         super(protocol);
@@ -47,7 +47,7 @@ public class RequestExecutor extends ExecutorBase {
         pending.put(id, result);
 
         try {
-            synchronized (result) { // TODO it's a local variable, not shared among threads
+            synchronized (result) {
                 // Send the request
                 protocol.send(OpCode.REQUEST, () -> {
                     protocol.sendVarint(id);

@@ -16,7 +16,7 @@ public class HandshakeTest extends AbstractBenchmark {
     @Test public void connection() throws Exception {
         try (final Connection ignored = Iris.connect(Config.RELAY_PORT)) {
         }
-        catch (IOException e) {
+        catch (Exception e) {
             Assert.fail(e.getMessage());
         }
     }
@@ -24,7 +24,7 @@ public class HandshakeTest extends AbstractBenchmark {
     @Test public void service() throws Exception {
         try (final Service ignored = Iris.register(Config.RELAY_PORT, Config.CLUSTER_NAME, new ServiceHandler() {})) {
         }
-        catch (IOException e) {
+        catch (Exception e) {
             Assert.fail(e.getMessage());
         }
     }
