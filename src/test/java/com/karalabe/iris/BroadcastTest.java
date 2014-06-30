@@ -194,6 +194,10 @@ public class BroadcastTest extends AbstractBenchmark {
             // Check that a 2 byte broadcast is dropped
             handler.connection.broadcast(Config.CLUSTER_NAME, new byte[]{0x00, 0x00});
             Assert.assertFalse(handler.pending.tryAcquire(100, TimeUnit.MILLISECONDS));
+
+            // Check that space freed gets replenished
+            handler.connection.broadcast(Config.CLUSTER_NAME, new byte[]{0x00});
+            Assert.assertTrue(handler.pending.tryAcquire(100, TimeUnit.MILLISECONDS));
         }
     }
 }

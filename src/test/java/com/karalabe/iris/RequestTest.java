@@ -161,7 +161,7 @@ public class RequestTest extends AbstractBenchmark {
     // Tests the request thread limitation.
     @BenchmarkOptions(benchmarkRounds = 5, warmupRounds = 10)
     @Test public void threadLimiting() throws Exception {
-        final int REQUEST_COUNT = 4, SLEEP = 100;
+        final int REQUEST_COUNT = 4, SLEEP = 250;
 
         // Create the service handler and limiter
         final RequestTestTimedHandler handler = new RequestTestTimedHandler();
@@ -218,6 +218,14 @@ public class RequestTest extends AbstractBenchmark {
                 Assert.fail();
             }
             catch (Exception e) { }
+
+            // Check that space freed gets replenished
+            try {
+                handler.connection.request(Config.CLUSTER_NAME, new byte[]{0x00}, 1000);
+            }
+            catch (Exception e) {
+                Assert.fail();
+            }
         }
     }
 }
