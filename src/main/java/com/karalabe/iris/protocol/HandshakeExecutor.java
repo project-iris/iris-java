@@ -1,12 +1,13 @@
-// Copyright (c) 2014 Project Iris. All rights reserved.
-//
-// The current language binding is an official support library of the Iris
-// cloud messaging framework, and as such, the same licensing terms apply.
-// For details please see http://iris.karalabe.com/downloads#License
+/*
+ * Copyright © 2014 Project Iris. All rights reserved.
+ *
+ * The current language binding is an official support library of the Iris cloud messaging framework, and as such, the same licensing terms apply.
+ * For details please see http://iris.karalabe.com/downloads#License
+ */
+
 package com.karalabe.iris.protocol;
 
-import java.io.IOException;
-import java.net.ProtocolException;
+import com.karalabe.iris.ProtocolException;
 
 public class HandshakeExecutor extends ExecutorBase {
     private static final String PROTOCOL_VERSION = "v1.0-draft2";
@@ -15,7 +16,7 @@ public class HandshakeExecutor extends ExecutorBase {
 
     public HandshakeExecutor(final ProtocolBase protocol) { super(protocol); }
 
-    public void init(final String cluster) throws IOException {
+    public void init(final String cluster) {
         protocol.send(OpCode.INIT, () -> {
             protocol.sendString(CLIENT_MAGIC);
             protocol.sendString(PROTOCOL_VERSION);
@@ -23,7 +24,7 @@ public class HandshakeExecutor extends ExecutorBase {
         });
     }
 
-    public String handleInit() throws IOException {
+    public String handleInit() {
         final OpCode opCode = OpCode.valueOf(protocol.receiveByte());
         switch (opCode) {
             case INIT: {
@@ -43,7 +44,7 @@ public class HandshakeExecutor extends ExecutorBase {
         }
     }
 
-    private void verifyMagic() throws IOException {
+    private void verifyMagic() {
         final String relayMagic = protocol.receiveString();
         if (!RELAY_MAGIC.equals(relayMagic)) {
             throw new ProtocolException(String.format("Protocol violation, invalid relay magic: %s!", relayMagic));

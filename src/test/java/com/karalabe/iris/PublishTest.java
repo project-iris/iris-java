@@ -1,8 +1,10 @@
-// Copyright (c) 2014 Project Iris. All rights reserved.
-//
-// The current language binding is an official support library of the Iris
-// cloud messaging framework, and as such, the same licensing terms apply.
-// For details please see http://iris.karalabe.com/downloads#License
+/*
+ * Copyright © 2014 Project Iris. All rights reserved.
+ *
+ * The current language binding is an official support library of the Iris cloud messaging framework, and as such, the same licensing terms apply.
+ * For details please see http://iris.karalabe.com/downloads#License
+ */
+
 package com.karalabe.iris;
 
 import com.carrotsearch.junitbenchmarks.AbstractBenchmark;
@@ -19,8 +21,7 @@ import java.util.concurrent.TimeUnit;
 
 @SuppressWarnings("JUnitTestNG")
 public class PublishTest extends AbstractBenchmark {
-    // Service handler for the publish/subscribe tests.
-    static class PublishTestServiceHandler implements ServiceHandler {
+    static class PublishSubscribeTestServiceHandler implements ServiceHandler {
         Connection connection;
 
         @Override public void init(@NotNull final Connection connection) {
@@ -28,12 +29,11 @@ public class PublishTest extends AbstractBenchmark {
         }
     }
 
-    // Topic handler for the publish/subscribe tests
-    static class PublishTestTopicHandler implements TopicHandler {
+    static class PublishSubscribeTestTopicHandler implements TopicHandler {
         final Set<String> arrived = Collections.synchronizedSet(new HashSet<>());
         Semaphore pending;
 
-        @Override public void handleEvent(@NotNull final byte[] event) {
+        @Override public void handleEvent(@NotNull final byte... event) {
             arrived.add(new String(event, StandardCharsets.UTF_8));
             pending.release(1);
         }
@@ -45,32 +45,32 @@ public class PublishTest extends AbstractBenchmark {
         final int CLIENT_COUNT = 5, SERVER_COUNT = 5, TOPIC_COUNT = 7, EVENT_COUNT = 15;
         final String[] topics = new String[TOPIC_COUNT];
         for (int i = 0; i < TOPIC_COUNT; i++) {
-            topics[i] = String.format("%s-%d", Config.TOPIC_NAME, i);
+            topics[i] = String.format("%s-%d", TestConfig.TOPIC_NAME, i);
         }
 
         final Collection<Thread> workers = new ArrayList<>(CLIENT_COUNT + SERVER_COUNT);
         final CyclicBarrier barrier = new CyclicBarrier(CLIENT_COUNT + SERVER_COUNT + 1);
-        final List<Exception> errors = Collections.synchronizedList(new ArrayList<>());
+        final Collection<Exception> errors = Collections.synchronizedList(new ArrayList<>());
 
         // Start up the concurrent publishing clients
         for (int i = 0; i < CLIENT_COUNT; i++) {
             final int client = i;
             final Thread worker = new Thread(() -> {
-                try (final Connection conn = Iris.connect(Config.RELAY_PORT)) {
+                try (final Connection connection = Iris.connect(TestConfig.RELAY_PORT)) {
                     // Wait till all clients and servers connect
-                    barrier.await(Config.PHASE_TIMEOUT, TimeUnit.SECONDS);
+                    barrier.await(TestConfig.PHASE_TIMEOUT, TimeUnit.SECONDS);
 
                     // Subscribe to the batch of topics
-                    PublishTestTopicHandler[] handlers = new PublishTestTopicHandler[TOPIC_COUNT];
+                    PublishSubscribeTestTopicHandler[] handlers = new PublishSubscribeTestTopicHandler[TOPIC_COUNT];
                     for (int j = 0; j < TOPIC_COUNT; j++) {
-                        handlers[j] = new PublishTestTopicHandler();
+                        handlers[j] = new PublishSubscribeTestTopicHandler();
                         handlers[j].pending = new Semaphore((CLIENT_COUNT + SERVER_COUNT) * EVENT_COUNT);
                         handlers[j].pending.acquire((CLIENT_COUNT + SERVER_COUNT) * EVENT_COUNT);
 
-                        conn.subscribe(topics[j], handlers[j]);
+                        connection.subscribe(topics[j], handlers[j]);
                     }
                     Thread.sleep(100);
-                    barrier.await(Config.PHASE_TIMEOUT, TimeUnit.SECONDS);
+                    barrier.await(TestConfig.PHASE_TIMEOUT, TimeUnit.SECONDS);
 
                     // Publish to all subscribers
                     for (int j = 0; j < EVENT_COUNT; j++) {
@@ -78,18 +78,17 @@ public class PublishTest extends AbstractBenchmark {
                         final byte[] eventBlob = event.getBytes(StandardCharsets.UTF_8);
 
                         for (int k = 0; k < TOPIC_COUNT; k++) {
-                            conn.publish(topics[k], eventBlob);
+                            connection.publish(topics[k], eventBlob);
                         }
                     }
-                    barrier.await(Config.PHASE_TIMEOUT, TimeUnit.SECONDS);
+                    barrier.await(TestConfig.PHASE_TIMEOUT, TimeUnit.SECONDS);
 
                     // Wait for all events to arrive
-                    for (PublishTestTopicHandler handler : handlers) {
+                    for (PublishSubscribeTestTopicHandler handler : handlers) {
                         verifyEvents(CLIENT_COUNT, SERVER_COUNT, EVENT_COUNT, handler);
                     }
-                    barrier.await(Config.PHASE_TIMEOUT, TimeUnit.SECONDS);
-                }
-                catch (Exception e) {
+                    barrier.await(TestConfig.PHASE_TIMEOUT, TimeUnit.SECONDS);
+                } catch (Exception e) {
                     errors.add(e);
                 }
             });
@@ -100,23 +99,23 @@ public class PublishTest extends AbstractBenchmark {
         for (int i = 0; i < SERVER_COUNT; i++) {
             final int server = i;
             final Thread worker = new Thread(() -> {
-                PublishTestServiceHandler handler = new PublishTestServiceHandler();
+                PublishSubscribeTestServiceHandler handler = new PublishSubscribeTestServiceHandler();
 
-                try (final Service ignored = Iris.register(Config.RELAY_PORT, Config.CLUSTER_NAME, handler)) {
+                try (final Service ignored = Iris.register(TestConfig.RELAY_PORT, TestConfig.CLUSTER_NAME, handler)) {
                     // Wait till all clients and servers connect
-                    barrier.await(Config.PHASE_TIMEOUT, TimeUnit.SECONDS);
+                    barrier.await(TestConfig.PHASE_TIMEOUT, TimeUnit.SECONDS);
 
                     // Subscribe to the batch of topics
-                    PublishTestTopicHandler[] handlers = new PublishTestTopicHandler[TOPIC_COUNT];
+                    PublishSubscribeTestTopicHandler[] handlers = new PublishSubscribeTestTopicHandler[TOPIC_COUNT];
                     for (int j = 0; j < TOPIC_COUNT; j++) {
-                        handlers[j] = new PublishTestTopicHandler();
+                        handlers[j] = new PublishSubscribeTestTopicHandler();
                         handlers[j].pending = new Semaphore((CLIENT_COUNT + SERVER_COUNT) * EVENT_COUNT);
                         handlers[j].pending.acquire((CLIENT_COUNT + SERVER_COUNT) * EVENT_COUNT);
 
                         handler.connection.subscribe(topics[j], handlers[j]);
                     }
                     Thread.sleep(100);
-                    barrier.await(Config.PHASE_TIMEOUT, TimeUnit.SECONDS);
+                    barrier.await(TestConfig.PHASE_TIMEOUT, TimeUnit.SECONDS);
 
                     // Publish to all subscribers
                     for (int j = 0; j < EVENT_COUNT; j++) {
@@ -127,15 +126,14 @@ public class PublishTest extends AbstractBenchmark {
                             handler.connection.publish(topics[k], eventBlob);
                         }
                     }
-                    barrier.await(Config.PHASE_TIMEOUT, TimeUnit.SECONDS);
+                    barrier.await(TestConfig.PHASE_TIMEOUT, TimeUnit.SECONDS);
 
                     // Wait for all events to arrive
-                    for (PublishTestTopicHandler hand : handlers) {
+                    for (PublishSubscribeTestTopicHandler hand : handlers) {
                         verifyEvents(CLIENT_COUNT, SERVER_COUNT, EVENT_COUNT, hand);
                     }
-                    barrier.await(Config.PHASE_TIMEOUT, TimeUnit.SECONDS);
-                }
-                catch (Exception e) {
+                    barrier.await(TestConfig.PHASE_TIMEOUT, TimeUnit.SECONDS);
+                } catch (Exception e) {
                     errors.add(e);
                 }
             });
@@ -144,36 +142,33 @@ public class PublishTest extends AbstractBenchmark {
         }
         // Schedule the parallel operations
         try {
-            barrier.await(Config.PHASE_TIMEOUT, TimeUnit.SECONDS);
+            barrier.await(TestConfig.PHASE_TIMEOUT, TimeUnit.SECONDS);
             Assert.assertTrue(errors.isEmpty());
 
-            barrier.await(Config.PHASE_TIMEOUT, TimeUnit.SECONDS);
+            barrier.await(TestConfig.PHASE_TIMEOUT, TimeUnit.SECONDS);
             Assert.assertTrue(errors.isEmpty());
 
-            barrier.await(Config.PHASE_TIMEOUT, TimeUnit.SECONDS);
+            barrier.await(TestConfig.PHASE_TIMEOUT, TimeUnit.SECONDS);
             Assert.assertTrue(errors.isEmpty());
-        }
-        finally {
+        } finally {
             for (Thread worker : workers) {
                 worker.join();
             }
         }
     }
 
-    private static void verifyEvents(int clients, int servers, int events, PublishTestTopicHandler handler) throws InterruptedException {
+    private static void verifyEvents(int clientCount, int serverCount, int eventCount, PublishSubscribeTestTopicHandler handler) throws InterruptedException {
         // Wait for all pending events to arrive
-        handler.pending.acquire((clients + servers) * events);
+        handler.pending.acquire((clientCount + serverCount) * eventCount);
 
         // Verify that the correct events have arrived
-        for (int j = 0; j < clients; j++) {
-            for (int k = 0; k < events; k++) {
-                final String message = String.format("client #%d, event %d", j, k);
+        for (int i = 0; i < eventCount; i++) {
+            for (int j = 0; j < clientCount; j++) {
+                final String message = String.format("client #%d, event %d", j, i);
                 Assert.assertTrue(handler.arrived.contains(message));
             }
-        }
-        for (int j = 0; j < servers; j++) {
-            for (int k = 0; k < events; k++) {
-                final String message = String.format("server #%d, event %d", j, k);
+            for (int j = 0; j < serverCount; j++) {
+                final String message = String.format("server #%d, event %d", j, i);
                 Assert.assertTrue(handler.arrived.contains(message));
             }
         }

@@ -1,8 +1,10 @@
-// Copyright (c) 2014 Project Iris. All rights reserved.
-//
-// The current language binding is an official support library of the Iris
-// cloud messaging framework, and as such, the same licensing terms apply.
-// For details please see http://iris.karalabe.com/downloads#License
+/*
+ * Copyright © 2014 Project Iris. All rights reserved.
+ *
+ * The current language binding is an official support library of the Iris cloud messaging framework, and as such, the same licensing terms apply.
+ * For details please see http://iris.karalabe.com/downloads#License
+ */
+
 package com.karalabe.iris;
 
 import com.carrotsearch.junitbenchmarks.AbstractBenchmark;
@@ -26,19 +28,12 @@ public class RequestTest extends AbstractBenchmark {
     // Service handler for the request/reply tests.
     static class RequestTestHandler implements ServiceHandler {
         Connection connection;
-
-        @Override public void init(@NotNull final Connection connection) {
-            this.connection = connection;
-        }
-
-        @Override public byte[] handleRequest(@NotNull final byte[] request) throws IllegalStateException {
-            return request;
-        }
+        @Override public void init(@NotNull final Connection connection) { this.connection = connection; }
+        @Override public byte[] handleRequest(@NotNull final byte... request) { return request; }
     }
 
-    // Tests multiple concurrent client and service requests.
     @BenchmarkOptions(benchmarkRounds = 5, warmupRounds = 10)
-    @Test public void concurrentRequests() throws Exception {
+    @Test public void testConcurrentClientAndServiceRequests() throws Exception {
         final int CLIENT_COUNT = 25, SERVER_COUNT = 25, REQUEST_COUNT = 25;
 
         final Collection<Thread> workers = new ArrayList<>(CLIENT_COUNT + SERVER_COUNT);
@@ -49,23 +44,21 @@ public class RequestTest extends AbstractBenchmark {
         for (int i = 0; i < CLIENT_COUNT; i++) {
             final int client = i;
             final Thread worker = new Thread(() -> {
-                try (final Connection conn = Iris.connect(Config.RELAY_PORT)) {
-                    // Wait till all clients and servers connect
-                    barrier.await(Config.PHASE_TIMEOUT, TimeUnit.SECONDS);
+                try (final Connection connection = Iris.connect(TestConfig.RELAY_PORT)) {
+                    barrier.await(TestConfig.PHASE_TIMEOUT, TimeUnit.SECONDS); // Wait till all clients and servers connect
 
                     // Request from the service cluster
                     for (int j = 0; j < REQUEST_COUNT; j++) {
                         final String request = String.format("client #%d, request %d", client, j);
                         final byte[] requestBlob = request.getBytes(StandardCharsets.UTF_8);
 
-                        final byte[] replyBlob = conn.request(Config.CLUSTER_NAME, requestBlob, 1000);
+                        final byte[] replyBlob = connection.request(TestConfig.CLUSTER_NAME, 1000, requestBlob);
                         final String reply = new String(replyBlob, StandardCharsets.UTF_8);
 
                         Assert.assertEquals(reply, request);
                     }
-                    barrier.await(Config.PHASE_TIMEOUT, TimeUnit.SECONDS);
-                }
-                catch (Exception e) {
+                    barrier.await(TestConfig.PHASE_TIMEOUT, TimeUnit.SECONDS);
+                } catch (Exception e) {
                     errors.add(e);
                 }
             });
@@ -79,22 +72,21 @@ public class RequestTest extends AbstractBenchmark {
             final Thread worker = new Thread(() -> {
                 final RequestTestHandler handler = new RequestTestHandler();
 
-                try (final Service ignored = Iris.register(Config.RELAY_PORT, Config.CLUSTER_NAME, handler)) {
+                try (final Service ignored = Iris.register(TestConfig.RELAY_PORT, TestConfig.CLUSTER_NAME, handler)) {
                     // Wait till all clients and servers connect
-                    barrier.await(Config.PHASE_TIMEOUT, TimeUnit.SECONDS);
+                    barrier.await(TestConfig.PHASE_TIMEOUT, TimeUnit.SECONDS);
 
                     // Request from the service cluster
                     for (int j = 0; j < REQUEST_COUNT; j++) {
                         final String request = String.format("server #%d, request %d", server, j);
                         final byte[] requestBlob = request.getBytes(StandardCharsets.UTF_8);
 
-                        final byte[] replyBlob = handler.connection.request(Config.CLUSTER_NAME, requestBlob, 1000);
+                        final byte[] replyBlob = handler.connection.request(TestConfig.CLUSTER_NAME, 1000, requestBlob);
                         final String reply = new String(replyBlob, StandardCharsets.UTF_8);
                         // TODO do something with the reply
                     }
-                    barrier.await(Config.PHASE_TIMEOUT, TimeUnit.SECONDS);
-                }
-                catch (Exception e) {
+                    barrier.await(TestConfig.PHASE_TIMEOUT, TimeUnit.SECONDS);
+                } catch (Exception e) {
                     errors.add(e);
                 }
             });
@@ -103,13 +95,12 @@ public class RequestTest extends AbstractBenchmark {
         }
         // Schedule the parallel operations
         try {
-            barrier.await(Config.PHASE_TIMEOUT, TimeUnit.SECONDS);
+            barrier.await(TestConfig.PHASE_TIMEOUT, TimeUnit.SECONDS);
             Assert.assertTrue(errors.isEmpty());
 
-            barrier.await(Config.PHASE_TIMEOUT, TimeUnit.SECONDS);
+            barrier.await(TestConfig.PHASE_TIMEOUT, TimeUnit.SECONDS);
             Assert.assertTrue(errors.isEmpty());
-        }
-        finally {
+        } finally {
             for (Thread worker : workers) {
                 worker.join();
             }
@@ -120,47 +111,34 @@ public class RequestTest extends AbstractBenchmark {
     static class RequestTestTimedHandler implements ServiceHandler {
         Connection connection;
         int        sleep;
-
-        @Override public void init(@NotNull final Connection connection) {
-            this.connection = connection;
-        }
-
-        @Override public byte[] handleRequest(@NotNull final byte[] request) {
+        @Override public void init(@NotNull final Connection connection) { this.connection = connection; }
+        @Override public byte[] handleRequest(@NotNull final byte... request) {
             try {
                 Thread.sleep(sleep);
                 return request;
-            }
-            catch (InterruptedException e) {
-                throw new IllegalStateException(e);
-            }
+            } catch (InterruptedException e) { throw new ProtocolException(e); }
         }
     }
 
-    // Tests the request thread limitation.
     @BenchmarkOptions(benchmarkRounds = 5, warmupRounds = 10)
-    @Test public void timeout() throws Exception {
+    @Test public void testRequestTimeout() throws Exception {
         final int SLEEP = 100;
 
         // Create the service handler
         final RequestTestTimedHandler handler = new RequestTestTimedHandler();
         handler.sleep = SLEEP;
 
-        try (final Service ignored = Iris.register(Config.RELAY_PORT, Config.CLUSTER_NAME, handler)) {
+        try (final Service ignored = Iris.register(TestConfig.RELAY_PORT, TestConfig.CLUSTER_NAME, handler)) {
             // Check that the timeouts are complied with.
-            handler.connection.request(Config.CLUSTER_NAME, new byte[]{0x00}, SLEEP * 2);
+            handler.connection.request(TestConfig.CLUSTER_NAME, SLEEP * 2, (byte) 0);
 
-            handler.connection.request(Config.CLUSTER_NAME, new byte[]{0x00}, SLEEP / 2);
+            handler.connection.request(TestConfig.CLUSTER_NAME, SLEEP / 2, (byte) 0);
             Assert.fail();
-        }
-        catch (TimeoutException ignored) {}
-        catch (Exception e) {
-            Assert.fail();
-        }
+        } catch (TimeoutException ignored) {}
     }
 
-    // Tests the request thread limitation.
     @BenchmarkOptions(benchmarkRounds = 5, warmupRounds = 10)
-    @Test public void threadLimiting() throws Exception {
+    @Test public void testRequestThreadLimiting() throws Exception {
         final int REQUEST_COUNT = 4, SLEEP = 250;
 
         // Create the service handler and limiter
@@ -170,18 +148,16 @@ public class RequestTest extends AbstractBenchmark {
         final ServiceLimits limits = new ServiceLimits();
         limits.requestThreads = 1;
 
-        try (final Service ignored = Iris.register(Config.RELAY_PORT, Config.CLUSTER_NAME, handler, limits)) {
+        try (final Service ignored = Iris.register(TestConfig.RELAY_PORT, TestConfig.CLUSTER_NAME, handler, limits)) {
             // Start a batch of requesters
             final LongAdder done = new LongAdder();
             for (int j = 0; j < REQUEST_COUNT; j++) {
                 new Thread(() -> {
                     try {
-                        handler.connection.request(Config.CLUSTER_NAME, new byte[]{0x00}, 1000);
-                    }
-                    catch (Exception e) {
-                        e.printStackTrace();
-                    }
-                    finally {
+                        handler.connection.request(TestConfig.CLUSTER_NAME, 1000, (byte) 0);
+                    } catch (InterruptedException | TimeoutException ignore) {
+                        /* Expected exception */
+                    } finally {
                         done.increment();
                     }
                 }).start();
@@ -196,36 +172,27 @@ public class RequestTest extends AbstractBenchmark {
         }
     }
 
-    // Tests the request memory limitation.
     @BenchmarkOptions(benchmarkRounds = 5, warmupRounds = 10)
-    @Test public void memoryLimiting() throws Exception {
+    @Test public void testRequestMemoryLimiting() throws Exception {
         // Create the service handler and limiter
         final RequestTestHandler handler = new RequestTestHandler();
         final ServiceLimits limits = new ServiceLimits();
         limits.requestMemory = 1;
 
-        try (final Service ignored = Iris.register(Config.RELAY_PORT, Config.CLUSTER_NAME, handler, limits)) {
+        try (final Service ignored = Iris.register(TestConfig.RELAY_PORT, TestConfig.CLUSTER_NAME, handler, limits)) {
+            final Connection connection = handler.connection;
+
             // Check that a 1 byte request succeeds
-            try {
-                handler.connection.request(Config.CLUSTER_NAME, new byte[]{0x00}, 1000);
-            }
-            catch (Exception e) {
-                Assert.fail();
-            }
+            connection.request(TestConfig.CLUSTER_NAME, 1000, (byte) 0);
+
             // Check that a 2 byte request fails
             try {
-                handler.connection.request(Config.CLUSTER_NAME, new byte[]{0x00, 0x00}, 1000);
+                connection.request(TestConfig.CLUSTER_NAME, 1000, (byte) 0, (byte) 0);
                 Assert.fail();
-            }
-            catch (Exception e) { }
+            } catch (InterruptedException | TimeoutException ignored2) {}
 
             // Check that space freed gets replenished
-            try {
-                handler.connection.request(Config.CLUSTER_NAME, new byte[]{0x00}, 1000);
-            }
-            catch (Exception e) {
-                Assert.fail();
-            }
+            connection.request(TestConfig.CLUSTER_NAME, 1000, (byte) 0);
         }
     }
 }

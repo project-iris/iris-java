@@ -1,12 +1,18 @@
+/*
+ * Copyright © 2014 Project Iris. All rights reserved.
+ *
+ * The current language binding is an official support library of the Iris cloud messaging framework, and as such, the same licensing terms apply.
+ * For details please see http://iris.karalabe.com/downloads#License
+ */
+
 package com.karalabe.iris.protocol;
 
+import com.karalabe.iris.ProtocolException;
 import com.karalabe.iris.ServiceHandler;
 import com.karalabe.iris.TunnelBridge;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.io.IOException;
-import java.rmi.RemoteException;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeoutException;
@@ -14,31 +20,31 @@ import java.util.concurrent.atomic.LongAdder;
 
 public class TunnelExecutor extends ExecutorBase {
     // Tunnel async construction result.
-    private static class InitResult {
+    static class InitResult {
         boolean timeout;
         long    chunking;
     }
 
     // Tunnel async tear-down result.
-    private static class CloseResult {
+    static class CloseResult {
         String reason;
     }
 
     private final ServiceHandler handler; // Callback handler for processing inbound tunnels
 
     private final LongAdder               nextId        = new LongAdder(); // Unique identifier for the next tunnel
-    private final Map<Long, InitResult>   pendingInits  = new ConcurrentHashMap<>(128); // Result objects for pending tunnel
-    private final Map<Long, CloseResult>  pendingCloses = new ConcurrentHashMap<>(128); // Result objects for pending tunnel
-    private final Map<Long, TunnelBridge> active        = new ConcurrentHashMap<>(128); // Currently active tunnels
+    private final Map<Long, InitResult>   pendingInits  = new ConcurrentHashMap<>(); // Result objects for pending tunnel
+    private final Map<Long, CloseResult>  pendingCloses = new ConcurrentHashMap<>(); // Result objects for pending tunnel
+    private final Map<Long, TunnelBridge> active        = new ConcurrentHashMap<>(); // Currently active tunnels
 
     public TunnelExecutor(@NotNull final ProtocolBase protocol, @Nullable final ServiceHandler handler) {
         super(protocol);
         this.handler = handler;
     }
 
-    @Override public void close() throws Exception {}
+    @Override public void close() throws InterruptedException {}
 
-    public TunnelBridge tunnel(final String cluster, final long timeout) throws IOException, InterruptedException, TimeoutException {
+    public TunnelBridge tunnel(final String cluster, final long timeout) throws InterruptedException, TimeoutException {
         // Fetch a unique ID for the request
         nextId.increment();
         final long id = nextId.longValue();
@@ -55,73 +61,62 @@ public class TunnelExecutor extends ExecutorBase {
                     protocol.sendString(cluster);
                     protocol.sendVarint(timeout);
                 });
-                // Wait until a reply arrives
-                result.wait();
+                result.wait(); // Wait until a reply arrives
             }
-            if (result.timeout) {
-                throw new TimeoutException("Tunnel construction timed out!");
-            }
-            TunnelBridge bridge = new TunnelBridge(this, id, result.chunking);
+            if (result.timeout) { throw new TimeoutException("Tunnel construction timed out!"); }
+
+            final TunnelBridge bridge = new TunnelBridge(this, id, result.chunking);
             active.put(id, bridge);
             return bridge;
-        }
-        finally {
+        } finally {
             pendingInits.remove(id);
         }
     }
 
     // Closes a particular tunnel instance.
-    public void closeBridge(final long id) throws IOException, InterruptedException {
-        TunnelBridge bridge = active.get(id);
-        if (bridge == null) {
-            throw new IllegalStateException("Non-existent tunnel");
-        }
-        active.remove(id);
-
-        // Create a temporary object to store the tear-down result
-        final CloseResult result = new CloseResult();
-        pendingCloses.put(id, result);
-
+    public void closeBridge(final long id) {
         try {
-            synchronized (result) {
-                // Send the tear-down request
-                protocol.send(OpCode.TUNNEL_CLOSE, () -> {
-                    protocol.sendVarint(id);
-                });
-                // Wait until a reply arrives
-                result.wait();
+            final TunnelBridge bridge = active.get(id);
+            if (bridge == null) { throw new ProtocolException("Non-existent tunnel"); }
+            active.remove(id);
+
+            // Create a temporary object to store the tear-down result
+            final CloseResult result = new CloseResult();
+            pendingCloses.put(id, result);
+
+            try {
+                synchronized (result) {
+                    // Send the tear-down request
+                    protocol.send(OpCode.TUNNEL_CLOSE, () -> protocol.sendVarint(id));
+                    result.wait(); // Wait until a reply arrives
+                }
+                if (!result.reason.isEmpty()) { throw new ProtocolException("Remote close failed: " + result.reason); }
+            } finally {
+                pendingInits.remove(id);
             }
-            if (!result.reason.isEmpty()) {
-                throw new RemoteException("Remote close failed: " + result.reason);
-            }
-        }
-        finally {
-            pendingInits.remove(id);
-        }
+        } catch (InterruptedException e) { throw new ProtocolException(e); }
     }
 
-    public void handleTunnelInit() throws IOException {
-        System.out.println("Tunnel init inbound");
+    public void handleTunnelInit() {
+        System.out.println("Tunnel init inbound"); // FIXME
         final long id = protocol.receiveVarint();
         final long chunking = protocol.receiveVarint();
 
         // Don't do anything for now.
     }
 
-    public void handleTunnelConfirm() throws IOException {
+    public void handleTunnelConfirm() {
         // Read the request id and fetch the pending construction result
         final long id = protocol.receiveVarint();
         final InitResult result = pendingInits.get(id);
-        if (result == null) {
-            // Already dead? Thread got interrupted!
-            return;
-        }
+        if (result == null) { return; } // Already dead? Thread got interrupted!
+
         // Read the rest of the response and fill the result accordingly
         result.timeout = protocol.receiveBoolean();
         if (!result.timeout) {
             result.chunking = protocol.receiveVarint();
         }
-        System.out.println(result.timeout + " " + result.chunking);
+        System.out.println(result.timeout + " " + result.chunking); // FIXME
 
         // Wake the origin thread
         synchronized (result) {
@@ -129,43 +124,22 @@ public class TunnelExecutor extends ExecutorBase {
         }
     }
 
-    public void sendTunnelConfirm(final long buildId, final long tunnelId) throws IOException {
+    public void sendTunnelConfirm(final long buildId, final long tunnelId) {
         protocol.send(OpCode.TUNNEL_CONFIRM, () -> {
             protocol.sendVarint(buildId);
             protocol.sendVarint(tunnelId);
         });
     }
-
-
    /*
 
-    public void handleTunnelConfirm() throws IOException {
-        try {
-            final long id = protocol.receiveVarint();
-            final boolean hasTimedOut = protocol.receiveBoolean();
-
-            final TunnelCallbackHandlers handler = callbacks.useCallbackHandler(id);
-            if (hasTimedOut) {
-                handler.handleTunnelReply(id, 0, true);
-            } else {
-
-                final long bufferSize = protocol.receiveVarint();
-                handler.handleTunnelReply(id, bufferSize, false);
-            }
-        }
-        catch (IllegalArgumentException e) {
-            System.err.printf("No %s found!%n", TunnelCallbackHandlers.class.getSimpleName());
-        }
-    }
-
-    public void sendTunnelTransfer(final long tunnelId, @NotNull final byte[] message) throws IOException {
+    public void sendTunnelTransfer(final long tunnelId, @NotNull final byte... message)  {
         protocol.send(OpCode.TUNNEL_TRANSFER, () -> {
             protocol.sendVarint(tunnelId);
             protocol.sendBinary(message);
         });
     }
 
-    public void handleTunnelTransfer() throws IOException {
+    public void handleTunnelTransfer()  {
         try {
             final long id = protocol.receiveVarint();
             final byte[] message = protocol.receiveBinary();
@@ -178,11 +152,11 @@ public class TunnelExecutor extends ExecutorBase {
         }
     }
 
-    public void sendTunnelAllow(final long tunnelId) throws IOException {
+    public void sendTunnelAllow(final long tunnelId)  {
         protocol.send(OpCode.TUNNEL_ALLOW, () -> protocol.sendVarint(tunnelId));
     }
 
-    public void handleTunnelAllow() throws IOException {
+    public void handleTunnelAllow()  {
         try {
             final long id = protocol.receiveVarint();
 
@@ -194,11 +168,11 @@ public class TunnelExecutor extends ExecutorBase {
         }
     }
 
-    public void sendTunnelClose(final long tunnelId) throws IOException {
+    public void sendTunnelClose(final long tunnelId)  {
         protocol.send(OpCode.TUNNEL_CLOSE, () -> protocol.sendVarint(tunnelId));
     }
 
-    public void handleTunnelClose() throws IOException {
+    public void handleTunnelClose()  {
         try {
             final long id = protocol.receiveVarint();
 

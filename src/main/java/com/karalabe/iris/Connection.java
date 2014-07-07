@@ -1,12 +1,16 @@
+/*
+ * Copyright © 2014 Project Iris. All rights reserved.
+ *
+ * The current language binding is an official support library of the Iris cloud messaging framework, and as such, the same licensing terms apply.
+ * For details please see http://iris.karalabe.com/downloads#License
+ */
+
 package com.karalabe.iris;
 
 import com.karalabe.iris.protocol.*;
-import com.karalabe.iris.protocol.TunnelExecutor;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.io.IOException;
-import java.rmi.RemoteException;
 import java.util.concurrent.TimeoutException;
 
 /*
@@ -16,10 +20,10 @@ public class Connection implements AutoCloseable {
     private final ProtocolBase protocol;
     private final Thread       runner;
 
-    // Application layer fields
+    /** Application layer fields */
     private final ServiceHandler handler;
 
-    // Network layer fields
+    /** Network layer fields */
     private final HandshakeExecutor    handshaker;
     private final BroadcastExecutor    broadcaster;
     private final RequestExecutor      requester;
@@ -27,9 +31,8 @@ public class Connection implements AutoCloseable {
     private final TeardownExecutor     teardowner;
     private final TunnelExecutor       tunneler;
 
-    // Connects to the Iris network as a simple client.
-    Connection(int port, @NotNull String clusterName, @Nullable ServiceHandler handler, @Nullable ServiceLimits limits) throws IOException {
-        // Load the default service limits if none specified
+    /** Connects to the Iris network as a simple client. */
+    Connection(int port, @NotNull String clusterName, @Nullable ServiceHandler handler, @Nullable ServiceLimits limits) {
         if (limits == null) { limits = new ServiceLimits(); }
 
         this.handler = handler;
@@ -50,37 +53,37 @@ public class Connection implements AutoCloseable {
         runner.start();
     }
 
-    public void broadcast(@NotNull final String cluster, @NotNull final byte[] message) throws IOException {
+    public void broadcast(@NotNull final String cluster, @NotNull final byte... message) {
         Validators.validateRemoteClusterName(cluster);
         broadcaster.broadcast(cluster, message);
     }
 
-    public byte[] request(@NotNull final String cluster, @NotNull final byte[] request, final long timeoutMillis) throws IOException, InterruptedException, RemoteException, TimeoutException {
+    public byte[] request(@NotNull final String cluster, final long timeoutMillis, @NotNull final byte... request) throws InterruptedException, TimeoutException {
         Validators.validateRemoteClusterName(cluster);
         return requester.request(cluster, request, timeoutMillis);
     }
 
-    public void subscribe(@NotNull final String topic, @NotNull final TopicHandler handler) throws IOException {
+    public void subscribe(@NotNull final String topic, @NotNull final TopicHandler handler) {
         subscribe(topic, handler, null);
     }
 
-    public void subscribe(@NotNull final String topic, @NotNull final TopicHandler handler, @Nullable TopicLimits limits) throws IOException {
+    public void subscribe(@NotNull final String topic, @NotNull final TopicHandler handler, @Nullable TopicLimits limits) {
         Validators.validateTopicName(topic);
         if (limits == null) { limits = new TopicLimits(); }
         subscriber.subscribe(topic, handler, limits);
     }
 
-    public void publish(@NotNull final String topic, @NotNull final byte[] event) throws IOException {
+    public void publish(@NotNull final String topic, @NotNull final byte... event) {
         Validators.validateTopicName(topic);
         subscriber.publish(topic, event);
     }
 
-    public void unsubscribe(@NotNull final String topic) throws IOException, InterruptedException {
+    public void unsubscribe(@NotNull final String topic) throws InterruptedException {
         Validators.validateTopicName(topic);
         subscriber.unsubscribe(topic);
     }
 
-    public Tunnel tunnel(@NotNull final String cluster, final long timeout) throws IOException, TimeoutException, InterruptedException {
+    public Tunnel tunnel(@NotNull final String cluster, final long timeout) throws TimeoutException, InterruptedException {
         Validators.validateRemoteClusterName(cluster);
         return new Tunnel(tunneler.tunnel(cluster, timeout));
     }
@@ -126,27 +129,16 @@ public class Connection implements AutoCloseable {
                         return;
 
                     default:
-                        throw new RemoteException(String.format("Illegal %s received: '%s'!", OpCode.class.getSimpleName(), opCode));
+                        throw new ProtocolException(String.format("Illegal %s received: '%s'!", OpCode.class.getSimpleName(), opCode));
                 }
             }
-        }
-        catch (Exception e) {
-            e.printStackTrace();
-        }
-        finally {
-            try {
-                protocol.close();
-            }
-            catch (IOException e) {
-                e.printStackTrace();
-            }
+        } finally {
+            protocol.close();
         }
     }
 
-    @Override public void close() throws IOException, InterruptedException {
-        if (runner != null) {
-            teardowner.teardown();
-            runner.join();
-        }
+    @Override public void close() throws InterruptedException {
+        teardowner.teardown();
+        runner.join();
     }
 }

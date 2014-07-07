@@ -7,7 +7,9 @@
 
 package com.karalabe.iris;
 
-public class TopicLimits {
-    public int eventThreads = 4 * Runtime.getRuntime().availableProcessors(); // Event handlers to execute concurrently
-    public int eventMemory  = 64 * 1024 * 1024;                               // Memory allowance for pending events
+public class TestConfig {
+    public static final int    RELAY_PORT    = 55555;
+    public static final String CLUSTER_NAME  = "java-binding-test-cluster";
+    public static final String TOPIC_NAME    = "java-binding-test-topic";
+    public static final long   PHASE_TIMEOUT = 3;
 }

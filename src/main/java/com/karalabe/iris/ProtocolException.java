@@ -7,7 +7,8 @@
 
 package com.karalabe.iris;
 
-public class TopicLimits {
-    public int eventThreads = 4 * Runtime.getRuntime().availableProcessors(); // Event handlers to execute concurrently
-    public int eventMemory  = 64 * 1024 * 1024;                               // Memory allowance for pending events
+public class ProtocolException extends RuntimeException {
+    public ProtocolException(final String message) { super(message); }
+    public ProtocolException(final String message, final Throwable cause) { super(message, cause); }
+    public ProtocolException(final Throwable cause) { super(cause); }
 }

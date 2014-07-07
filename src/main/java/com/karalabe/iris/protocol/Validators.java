@@ -1,3 +1,10 @@
+/*
+ * Copyright © 2014 Project Iris. All rights reserved.
+ *
+ * The current language binding is an official support library of the Iris cloud messaging framework, and as such, the same licensing terms apply.
+ * For details please see http://iris.karalabe.com/downloads#License
+ */
+
 package com.karalabe.iris.protocol;
 
 import org.jetbrains.annotations.NotNull;
@@ -5,19 +12,19 @@ import org.jetbrains.annotations.NotNull;
 import java.util.regex.Pattern;
 
 public final class Validators {
-    private static final Pattern localClusterPattern  = Pattern.compile("[^:]*");
-    private static final Pattern remoteClusterPattern = Pattern.compile("([^:]+:)?[^:]+");
+    private static final Pattern LOCAL_CLUSTER_PATTERN  = Pattern.compile("[^:]*");
+    private static final Pattern REMOTE_CLUSTER_PATTERN = Pattern.compile("([^:]+:)?[^:]+");
 
     private Validators() {}
 
-    public static void validateLocalClusterName(@NotNull final String cluster) {
-        if (!localClusterPattern.matcher(cluster).matches()) {
+    public static void validateLocalClusterName(@NotNull final CharSequence cluster) {
+        if (!LOCAL_CLUSTER_PATTERN.matcher(cluster).matches()) {
             throw new IllegalArgumentException("Invalid local cluster name!");
         }
     }
 
-    public static void validateRemoteClusterName(@NotNull final String cluster) {
-        if (!remoteClusterPattern.matcher(cluster).matches()) {
+    public static void validateRemoteClusterName(@NotNull final CharSequence cluster) {
+        if (!REMOTE_CLUSTER_PATTERN.matcher(cluster).matches()) {
             throw new IllegalArgumentException("Invalid remote cluster name!");
         }
     }
