@@ -1,0 +1,9 @@
+<component name="CopyrightManager">
+  <copyright>
+    <option name="notice" value="Copyright © 2014 Project Iris. All rights reserved.&#10;&#10;The current language binding is an official support library of the Iris cloud messaging framework, and as such, the same licensing terms apply.&#10;For details please see http://iris.karalabe.com/downloads#License" />
+    <option name="keyword" value="Copyright" />
+    <option name="allowReplaceKeyword" value="Copyright" />
+    <option name="myName" value="Iris" />
+    <option name="myLocal" value="true" />
+  </copyright>
+</component>

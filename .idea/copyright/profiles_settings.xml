@@ -1,3 +1,7 @@
 <component name="CopyrightManager">
-  <settings default="" />
+  <settings default="Iris">
+    <module2copyright>
+      <element module="All" copyright="Iris" />
+    </module2copyright>
+  </settings>
 </component>
