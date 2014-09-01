@@ -1,79 +1,82 @@
-/*
- * Copyright © 2014 Project Iris. All rights reserved.
- *
- * The current language binding is an official support library of the Iris cloud messaging framework, and as such, the same licensing terms apply.
- * For details please see http://iris.karalabe.com/downloads#License
- */
-
+// Copyright (c) 2014 Project Iris. All rights reserved.
+//
+// The current language binding is an official support library of the Iris
+// cloud messaging framework, and as such, the same licensing terms apply.
+// For details please see http://iris.karalabe.com/downloads#License
 package com.karalabe.iris.protocol;
 
-import com.karalabe.iris.ProtocolException;
 import com.karalabe.iris.TopicHandler;
 import com.karalabe.iris.TopicLimits;
 import com.karalabe.iris.common.BoundedThreadPool;
-import com.karalabe.iris.common.BoundedThreadPool.Terminate;
 
+import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class SubscriptionExecutor extends ExecutorBase {
-    static class SubscriptionState {
+    // Simple container for an individual subscription's state
+    static class Subscription {
         public TopicHandler      handler; // Callback handler for processing inbound events
         public BoundedThreadPool workers; // Thread pool for limiting the concurrent processing
     }
 
-    private final Map<String, SubscriptionState> activeSubscriptions = new ConcurrentHashMap<>();
+    private final Map<String, Subscription> active = new ConcurrentHashMap<>();
 
     public SubscriptionExecutor(final ProtocolBase protocol) {
         super(protocol);
     }
 
-    public void subscribe(final String topic, final TopicHandler handler, final TopicLimits limits) {
+    public void subscribe(final String topic, final TopicHandler handler, final TopicLimits limits) throws IOException {
         // Make sure double subscriptions result in a failure
-        final SubscriptionState subscriptionState = new SubscriptionState();
-        synchronized (activeSubscriptions) {
-            if (activeSubscriptions.containsKey(topic)) { throw new ProtocolException("Already subscribed!"); }
-            activeSubscriptions.put(topic, subscriptionState);
+        final Subscription sub = new Subscription();
+        synchronized (active) {
+            if (active.containsKey(topic)) {
+                throw new IllegalStateException("Already subscribed!");
+            }
+            active.put(topic, sub);
         }
         // Leave the critical section and finish initialization
-        subscriptionState.handler = handler;
-        subscriptionState.workers = new BoundedThreadPool(limits.eventThreads, limits.eventMemory);
+        sub.handler = handler;
+        sub.workers = new BoundedThreadPool(limits.eventThreads, limits.eventMemory);
 
         protocol.send(OpCode.SUBSCRIBE, () -> protocol.sendString(topic));
     }
 
-    public void unsubscribe(final String topic) throws InterruptedException {
-        // Make sure there's an activeSubscriptions subscription
-        final SubscriptionState subscriptionState;
-        synchronized (activeSubscriptions) {
-            if (!activeSubscriptions.containsKey(topic)) { throw new ProtocolException("Not subscribed!"); }
-            subscriptionState = activeSubscriptions.remove(topic);
+    public void unsubscribe(final String topic) throws IOException, InterruptedException {
+        // Make sure there's an active subscription
+        final Subscription sub;
+        synchronized (active) {
+            if (!active.containsKey(topic)) {
+                throw new IllegalStateException("Not subscribed!");
+            }
+            sub = active.remove(topic);
         }
-        subscriptionState.workers.terminate(Terminate.NOW); // Leave the critical section and finish cleanup
+        // Leave the critical section and finish cleanup
+        sub.workers.terminate(true);
 
         protocol.send(OpCode.UNSUBSCRIBE, () -> protocol.sendString(topic));
     }
 
-    public void publish(final String topic, final byte... event) {
+    public void publish(final String topic, final byte[] event) throws IOException {
         protocol.send(OpCode.PUBLISH, () -> {
             protocol.sendString(topic);
             protocol.sendBinary(event);
         });
     }
 
-    public void handlePublish() {
+    public void handlePublish() throws IOException {
         final String topic = protocol.receiveString();
         final byte[] event = protocol.receiveBinary();
 
-        final SubscriptionState subscriptionState = activeSubscriptions.get(topic);
-        if (subscriptionState != null) {
-            subscriptionState.workers.schedule(event.length, () -> subscriptionState.handler.handleEvent(event));
+        final Subscription sub = active.get(topic);
+        if (sub != null) {
+            sub.workers.schedule(() -> sub.handler.handleEvent(event), event.length);
         }
     }
 
-    @Override public void close() throws InterruptedException {
-        for (SubscriptionState subscriptionState : activeSubscriptions.values()) {
-            subscriptionState.workers.terminate(Terminate.NOW);
+    @Override public void close() throws Exception {
+        for (Subscription sub : active.values()) {
+            sub.workers.terminate(true);
         }
     }
 }

@@ -5,10 +5,9 @@
 // For details please see http://iris.karalabe.com/downloads#License
 package com.karalabe.iris;
 
-public class TopicLimits {
-    // Event handlers to execute concurrently
-    public int eventThreads = 4 * Runtime.getRuntime().availableProcessors();
-
-    // Memory allowance for pending events
-    public int eventMemory = 64 * 1024 * 1024;
+public class Config {
+    public static final int    RELAY_PORT    = 55555;
+    public static final String CLUSTER_NAME  = "java-binding-test-cluster";
+    public static final String TOPIC_NAME    = "java-binding-test-topic";
+    public static final long   PHASE_TIMEOUT = 3;
 }

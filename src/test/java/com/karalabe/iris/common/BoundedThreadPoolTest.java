@@ -1,14 +1,10 @@
-/*
- * Copyright © 2014 Project Iris. All rights reserved.
- *
- * The current language binding is an official support library of the Iris cloud messaging framework, and as such, the same licensing terms apply.
- * For details please see http://iris.karalabe.com/downloads#License
- */
-
+// Copyright (c) 2014 Project Iris. All rights reserved.
+//
+// The current language binding is an official support library of the Iris
+// cloud messaging framework, and as such, the same licensing terms apply.
+// For details please see http://iris.karalabe.com/downloads#License
 package com.karalabe.iris.common;
 
-import com.karalabe.iris.ProtocolException;
-import com.karalabe.iris.common.BoundedThreadPool.Terminate;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -23,9 +19,9 @@ public class BoundedThreadPoolTest {
 
         final LongAdder counter = new LongAdder();
         for (int i = 0; i < TASK_COUNT; i++) {
-            Assert.assertTrue(pool.schedule(0, counter::increment));
+            Assert.assertTrue(pool.schedule(counter::increment, 0));
         }
-        pool.terminate(Terminate.AWAIT);
+        pool.terminate(false);
         Assert.assertEquals(TASK_COUNT, counter.intValue());
     }
 
@@ -34,8 +30,8 @@ public class BoundedThreadPoolTest {
         final int THREAD_COUNT = 1, MEMORY_SIZE = 1;
         final BoundedThreadPool pool = new BoundedThreadPool(THREAD_COUNT, MEMORY_SIZE);
 
-        Assert.assertTrue(pool.schedule(1, () -> {}));
-        Assert.assertFalse(pool.schedule(2, () -> {}));
+        Assert.assertTrue(pool.schedule(() -> {}, 1));
+        Assert.assertFalse(pool.schedule(() -> {}, 2));
     }
 
     // Tests that scheduled timeouts are complied with.
@@ -45,15 +41,17 @@ public class BoundedThreadPoolTest {
 
         final LongAdder counter = new LongAdder();
         for (int i = 0; i < TASK_COUNT; i++) {
-            final boolean isScheduled = pool.schedule(0, TIMEOUT, () -> {
+            Assert.assertTrue(pool.schedule(() -> {
                 counter.increment();
                 try {
                     Thread.sleep(2 * TIMEOUT);
-                } catch (InterruptedException e) { throw new ProtocolException(e); }
-            });
-            Assert.assertTrue(isScheduled);
+                }
+                catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }, 0, TIMEOUT));
         }
-        pool.terminate(Terminate.AWAIT);
+        pool.terminate(false);
         Assert.assertEquals(1, counter.intValue());
     }
 }

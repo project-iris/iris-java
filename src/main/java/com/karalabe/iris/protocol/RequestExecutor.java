@@ -1,26 +1,24 @@
-/*
- * Copyright © 2014 Project Iris. All rights reserved.
- *
- * The current language binding is an official support library of the Iris cloud messaging framework, and as such, the same licensing terms apply.
- * For details please see http://iris.karalabe.com/downloads#License
- */
-
+// Copyright (c) 2014 Project Iris. All rights reserved.
+//
+// The current language binding is an official support library of the Iris
+// cloud messaging framework, and as such, the same licensing terms apply.
+// For details please see http://iris.karalabe.com/downloads#License
 package com.karalabe.iris.protocol;
 
-import com.karalabe.iris.ProtocolException;
 import com.karalabe.iris.ServiceHandler;
 import com.karalabe.iris.ServiceLimits;
 import com.karalabe.iris.common.BoundedThreadPool;
-import com.karalabe.iris.common.BoundedThreadPool.Terminate;
 import org.jetbrains.annotations.Nullable;
 
+import java.io.IOException;
+import java.rmi.RemoteException;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.LongAdder;
 
 public class RequestExecutor extends ExecutorBase {
-    static class Result {
+    private static class Result {
         boolean timeout;
         byte[]  reply;
         String  error;
@@ -30,7 +28,7 @@ public class RequestExecutor extends ExecutorBase {
     private final BoundedThreadPool workers; // Thread pool for limiting the concurrent processing
 
     private final LongAdder         nextId  = new LongAdder(); // Unique identifier for the next request
-    private final Map<Long, Result> pending = new ConcurrentHashMap<>(); // Result objects for pending requests
+    private final Map<Long, Result> pending = new ConcurrentHashMap<>(128); // Result objects for pending requests
 
     public RequestExecutor(final ProtocolBase protocol, @Nullable final ServiceHandler handler, final ServiceLimits limits) {
         super(protocol);
@@ -39,7 +37,7 @@ public class RequestExecutor extends ExecutorBase {
         this.workers = new BoundedThreadPool(limits.requestThreads, limits.requestMemory);
     }
 
-    public byte[] request(final String cluster, byte[] request, long timeoutMillis) throws InterruptedException, TimeoutException {
+    public byte[] request(final String cluster, byte[] request, long timeoutMillis) throws IOException, InterruptedException, RemoteException, TimeoutException {
         // Fetch a unique ID for the request
         nextId.increment();
         final long id = nextId.longValue();
@@ -57,22 +55,24 @@ public class RequestExecutor extends ExecutorBase {
                     protocol.sendBinary(request);
                     protocol.sendVarint(timeoutMillis);
                 });
-                result.wait(); // Wait until a reply arrives
+                // Wait until a reply arrives
+                result.wait();
             }
 
             if (result.timeout) {
                 throw new TimeoutException("Request timed out!");
             } else if (result.error != null) {
-                throw new ProtocolException(result.error);
+                throw new RemoteException(result.error);
             } else {
                 return result.reply;
             }
-        } finally {
+        }
+        finally {
             pending.remove(id);
         }
     }
 
-    public void reply(final long id, @Nullable final byte[] response, @Nullable final String error) {
+    public void reply(final long id, @Nullable final byte[] response, @Nullable final String error) throws IOException {
         protocol.send(OpCode.REPLY, () -> {
             protocol.sendVarint(id);
             protocol.sendBoolean(error == null);
@@ -84,31 +84,40 @@ public class RequestExecutor extends ExecutorBase {
         });
     }
 
-    public void handleRequest() {
+    public void handleRequest() throws IOException {
         final long id = protocol.receiveVarint();
         final byte[] request = protocol.receiveBinary();
-        final int timeout = (int) protocol.receiveVarint();
+        final long timeout = protocol.receiveVarint();
 
-        workers.schedule(request.length, timeout, () -> {
+        workers.schedule(() -> {
             byte[] response = null;
             String error = null;
 
             // Execute the request and flatten any error
             try {
                 response = handler.handleRequest(request);
-            } catch (Exception e) {
+            }
+            catch (Exception e) {
                 error = e.toString();
             }
-            reply(id, response, error);
-        });
+            // Try and send back the reply
+            try {
+                reply(id, response, error);
+            }
+            catch (IOException e) {
+                e.printStackTrace();
+            }
+        }, request.length, (int) timeout);
     }
 
-    public void handleReply() {
+    public void handleReply() throws IOException {
         // Read the request id and fetch the pending result
         final long id = protocol.receiveVarint();
         final Result result = pending.get(id);
-        if (result == null) { return; } // Already dead? Thread got interrupted!
-
+        if (result == null) {
+            // Already dead? Thread got interrupted!
+            return;
+        }
         // Read the rest of the response and fill the result accordingly
         result.timeout = protocol.receiveBoolean();
         if (!result.timeout) {
@@ -125,7 +134,7 @@ public class RequestExecutor extends ExecutorBase {
         }
     }
 
-    @Override public void close() throws InterruptedException {
-        workers.terminate(Terminate.NOW);
+    @Override public void close() throws Exception {
+        workers.terminate(true);
     }
 }

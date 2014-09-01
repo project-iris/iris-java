@@ -1,23 +1,13 @@
-/*
- * Copyright © 2014 Project Iris. All rights reserved.
- *
- * The current language binding is an official support library of the Iris cloud messaging framework, and as such, the same licensing terms apply.
- * For details please see http://iris.karalabe.com/downloads#License
- */
-
 package com.karalabe.iris.protocol;
 
-import com.karalabe.iris.ProtocolException;
 import org.junit.Assert;
 import org.junit.Test;
 
-import java.io.InputStream;
-import java.io.OutputStream;
+import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
-import java.util.function.Consumer;
 
 @SuppressWarnings({"resource", "JUnitTestNG", "ProhibitedExceptionDeclared", "UnqualifiedStaticUsage", "InstanceMethodNamingConvention"})
 public class ProtocolBaseTest {
@@ -72,28 +62,38 @@ public class ProtocolBaseTest {
         });
     }
 
-    private static void testProtocol(Consumer<ProtocolBase> consumer) throws Exception {
+    private static void testProtocol(TestConsumer<ProtocolBase> testConsumer) throws Exception {
         // Create a simple echo server (i.e. loop output stream back to input stream)
-        try (final ServerSocket server = new ServerSocket(0)) {
-            new Thread(() -> {
-                try (Socket socket = server.accept()) {
-                    byte[] buffer = new byte[256];
-                    int len = 0;
+        final ServerSocket server = new ServerSocket(0);
+        new Thread(() -> {
+            try {
+                Socket socket = server.accept();
+                byte[] buffer = new byte[256];
+                int len = 0;
 
-                    final InputStream in = socket.getInputStream();
-                    final OutputStream out = socket.getOutputStream();
-
-                    while ((len = in.read(buffer)) >= 0) {
-                        out.write(buffer, 0, len);
-                        out.flush();
-                    }
-                } catch (Exception e) { throw new ProtocolException(e); }
-            }).start();
-
-            // Execute the requested test
-            try (final ProtocolBase protocol = new ProtocolBase(server.getLocalPort())) {
-                consumer.accept(protocol);
+                while ((len = socket.getInputStream().read(buffer)) >= 0) {
+                    socket.getOutputStream().write(buffer, 0, len);
+                    socket.getOutputStream().flush();
+                }
+                socket.close();
+                server.close();
             }
+            catch (IOException e) {
+                e.printStackTrace();
+            }
+        }).start();
+
+        // Execute the requested test
+        try (final ProtocolBase protocol = new ProtocolBase(server.getLocalPort())) {
+            testConsumer.accept(protocol);
         }
+        catch (IOException e) {
+            Assert.fail(e.getMessage());
+        }
+    }
+
+    @FunctionalInterface
+    public interface TestConsumer<T> {
+        void accept(T t) throws Exception;
     }
 }
