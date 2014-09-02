@@ -1,5 +1,6 @@
 package com.karalabe.iris;
 
+import com.karalabe.iris.schemes.TunnelScheme.TunnelBridge;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.IOException;
@@ -8,7 +9,7 @@ import java.util.concurrent.TimeoutException;
 public class Tunnel implements AutoCloseable {
     private final TunnelBridge bridge;
 
-    Tunnel(@NotNull final TunnelBridge bridge) {
+    public Tunnel(@NotNull final TunnelBridge bridge) {
         this.bridge = bridge;
     }
 

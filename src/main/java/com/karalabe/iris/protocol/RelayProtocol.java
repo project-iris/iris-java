@@ -14,6 +14,7 @@ import com.karalabe.iris.ServiceHandler;
 import com.karalabe.iris.schemes.BroadcastScheme;
 import com.karalabe.iris.schemes.PublishScheme;
 import com.karalabe.iris.schemes.RequestScheme;
+import com.karalabe.iris.schemes.TunnelScheme;
 
 import java.io.BufferedOutputStream;
 import java.io.DataInputStream;
@@ -190,6 +191,47 @@ public class RelayProtocol {
         });
     }
 
+    // Sends a tunnel construction request.
+    public void sendTunnelInit(final long id, final String cluster, final long timeout) throws IOException {
+        sendPacket(OP_TUNNEL_INIT, () -> {
+            sendVarint(id);
+            sendString(cluster);
+            sendVarint(timeout);
+        });
+    }
+
+    // Sends a tunnel confirmation.
+    public void sendTunnelConfirm(final long buildId, final long tunnelId) throws IOException {
+        sendPacket(OP_TUNNEL_CONFIRM, () -> {
+            sendVarint(buildId);
+            sendVarint(tunnelId);
+        });
+    }
+
+    // Sends a tunnel transfer allowance.
+    public void sendTunnelAllowance(final long id, final int space) throws IOException {
+        sendPacket(OP_TUNNEL_ALLOW, () -> {
+            sendVarint(id);
+            sendVarint(space);
+        });
+    }
+
+    // Sends a tunnel data exchange.
+    public void sendTunnelTransfer(final long id, final int sizeOrCont, final byte[] payload) throws IOException {
+        sendPacket(OP_TUNNEL_TRANSFER, () -> {
+            sendVarint(id);
+            sendVarint(sizeOrCont);
+            sendBinary(payload);
+        });
+    }
+
+    // Sends a tunnel termination request.
+    public void sendTunnelClose(final long id) throws IOException {
+        sendPacket(OP_TUNNEL_CLOSE, () -> {
+            sendVarint(id);
+        });
+    }
+
     // Retrieves a single byte from the relay connection.
     private byte receiveByte() throws IOException {
         return socketIn.readByte();
@@ -301,16 +343,65 @@ public class RelayProtocol {
         }
     }
 
-    public void processPublish(final PublishScheme scheme) throws IOException {
+    // Retrieves a topic event delivery.
+    private void processPublish(final PublishScheme scheme) throws IOException {
         final String topic = receiveString();
         final byte[] event = receiveBinary();
 
         scheme.handlePublish(topic, event);
     }
 
+    // Retrieves a tunnel initiation message.
+    private void processTunnelInit(final TunnelScheme scheme) throws IOException {
+        final long id = receiveVarint();
+        final long chunking = receiveVarint();
+
+        scheme.handleTunnelInit(id, chunking);
+    }
+
+    // Retrieves a tunnel construction result.
+    private void processTunnelResult(final TunnelScheme scheme) throws IOException {
+        final long id = receiveVarint();
+
+        final boolean timeout = receiveBoolean();
+        if (timeout) {
+            scheme.handleTunnelResult(id, 0);
+            return;
+        }
+
+        final long chunking = receiveVarint();
+        scheme.handleTunnelResult(id, chunking);
+    }
+
+    // Retrieves a tunnel transfer allowance message.
+    private void processTunnelAllowance(final TunnelScheme scheme) throws IOException {
+        final long id = receiveVarint();
+        final int space = (int)receiveVarint();
+
+        scheme.handleTunnelAllowance(id, space);
+    }
+
+    // Retrieves a tunnel data exchange message.
+    private void processTunnelTransfer(final TunnelScheme scheme) throws IOException {
+        final long id = receiveVarint();
+        final int size = (int)receiveVarint();
+        final byte[] payload = receiveBinary();
+
+        scheme.handleTunnelTransfer(id, size, payload);
+    }
+
+    // Retrieves a tunnel closure notification.
+    private void processTunnelClose(final TunnelScheme scheme) throws IOException {
+        final long id = receiveVarint();
+        final String reason = receiveString();
+
+        scheme.handleTunnelClose(id, reason);
+    }
+
     // Retrieves messages from the client connection and keeps processing them until
     // either the relay closes (graceful close) or the connection drops.
-    public void process(final ServiceHandler handler, final BroadcastScheme broadcaster, final RequestScheme requester, final PublishScheme publisher) {
+    public void process(final ServiceHandler handler, final BroadcastScheme broadcaster, final RequestScheme requester,
+                        final PublishScheme publisher, final TunnelScheme tunneler) {
         try {
             boolean closed = false;
             while (!closed) {
@@ -332,19 +423,24 @@ public class RelayProtocol {
                         break;
 
                     case OP_TUNNEL_INIT:
-                        //tunneler.handleTunnelInit();
+                        System.out.println("Tunnel init");
+                        processTunnelInit(tunneler);
                         break;
                     case OP_TUNNEL_CONFIRM:
-                        //tunneler.handleTunnelConfirm();
+                        System.out.println("Tunnel confirm");
+                        processTunnelResult(tunneler);
                         break;
                     case OP_TUNNEL_ALLOW:
-                        //tunneler.handleTunnelAllow();
+                        System.out.println("Tunnel allowance");
+                        processTunnelAllowance(tunneler);
                         break;
                     case OP_TUNNEL_TRANSFER:
-                        //tunneler.handleTunnelTransfer();
+                        System.out.println("Tunnel transfer");
+                        processTunnelTransfer(tunneler);
                         break;
                     case OP_TUNNEL_CLOSE:
-                        //tunneler.handleTunnelClose();
+                        System.out.println("Tunnel close");
+                        processTunnelClose(tunneler);
                         break;
 
                     case OP_CLOSE:

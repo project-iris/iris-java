@@ -1,10 +1,7 @@
 package com.karalabe.iris;
 
 import com.karalabe.iris.protocol.RelayProtocol;
-import com.karalabe.iris.schemes.BroadcastScheme;
-import com.karalabe.iris.schemes.PublishScheme;
-import com.karalabe.iris.schemes.RequestScheme;
-import com.karalabe.iris.schemes.Validators;
+import com.karalabe.iris.schemes.*;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -26,7 +23,7 @@ public class Connection implements AutoCloseable {
     private final BroadcastScheme broadcaster;
     private final RequestScheme   requester;
     private final PublishScheme   subscriber;
-    //private final TunnelExecutor  tunneler;
+    private final TunnelScheme    tunneler;
 
     // Connects to the Iris network as a simple client.
     Connection(int port, @NotNull String cluster, @Nullable ServiceHandler handler, @Nullable ServiceLimits limits) throws IOException {
@@ -41,12 +38,12 @@ public class Connection implements AutoCloseable {
         broadcaster = new BroadcastScheme(protocol, handler, limits);
         requester = new RequestScheme(protocol, handler, limits);
         subscriber = new PublishScheme(protocol);
-        //tunneler = new TunnelExecutor(protocol, handler);
+        tunneler = new TunnelScheme(protocol, handler);
 
         // Start processing inbound network packets
         runner = new Thread(new Runnable() {
             @Override public void run() {
-                protocol.process(handler, broadcaster, requester, subscriber);
+                protocol.process(handler, broadcaster, requester, subscriber, tunneler);
             }
         });
         runner.start();
@@ -84,7 +81,7 @@ public class Connection implements AutoCloseable {
 
     public Tunnel tunnel(@NotNull final String cluster, final long timeout) throws IOException, TimeoutException, InterruptedException {
         Validators.validateRemoteClusterName(cluster);
-        return null;//new Tunnel(tunneler.tunnel(cluster, timeout));
+        return new Tunnel(tunneler.tunnel(cluster, timeout));
     }
 
     @Override public void close() throws IOException, InterruptedException {
@@ -94,8 +91,9 @@ public class Connection implements AutoCloseable {
             runner.join();
         }
         // Tear down the individual scheme implementations
-        broadcaster.close();
-        requester.close();
+        tunneler.close();
         subscriber.close();
+        requester.close();
+        broadcaster.close();
     }
 }
