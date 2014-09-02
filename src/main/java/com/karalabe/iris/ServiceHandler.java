@@ -28,8 +28,7 @@ public interface ServiceHandler {
     default void handleTunnel(@NotNull final Tunnel tunnel) {
         try {
             tunnel.close();
-        }
-        catch (Exception e) {
+        } catch (Exception e) {
             e.printStackTrace();
         }
     }

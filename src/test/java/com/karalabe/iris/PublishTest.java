@@ -88,8 +88,7 @@ public class PublishTest extends AbstractBenchmark {
                         verifyEvents(CLIENT_COUNT, SERVER_COUNT, EVENT_COUNT, handler);
                     }
                     barrier.await(Config.PHASE_TIMEOUT, TimeUnit.SECONDS);
-                }
-                catch (Exception e) {
+                } catch (Exception e) {
                     errors.add(e);
                 }
             });
@@ -134,8 +133,7 @@ public class PublishTest extends AbstractBenchmark {
                         verifyEvents(CLIENT_COUNT, SERVER_COUNT, EVENT_COUNT, hand);
                     }
                     barrier.await(Config.PHASE_TIMEOUT, TimeUnit.SECONDS);
-                }
-                catch (Exception e) {
+                } catch (Exception e) {
                     errors.add(e);
                 }
             });
@@ -152,8 +150,7 @@ public class PublishTest extends AbstractBenchmark {
 
             barrier.await(Config.PHASE_TIMEOUT, TimeUnit.SECONDS);
             Assert.assertTrue(errors.isEmpty());
-        }
-        finally {
+        } finally {
             for (Thread worker : workers) {
                 worker.join();
             }

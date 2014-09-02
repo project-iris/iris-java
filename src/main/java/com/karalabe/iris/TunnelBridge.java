@@ -22,7 +22,7 @@ public class TunnelBridge implements AutoCloseable {
     private final TunnelExecutor tunneler; // Protocol executor to the local relay
 
     // Chunking fields
-    private final long    chunkLimit;  // Maximum length of a data payload
+    private final long   chunkLimit;  // Maximum length of a data payload
     private       byte[] chunkBuffer;// Current message being assembled
 
     // Quality of service fields

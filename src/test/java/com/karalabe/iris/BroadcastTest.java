@@ -61,8 +61,7 @@ public class BroadcastTest extends AbstractBenchmark {
                     }
                     barrier.await(Config.PHASE_TIMEOUT, TimeUnit.SECONDS);
                     barrier.await(Config.PHASE_TIMEOUT, TimeUnit.SECONDS);
-                }
-                catch (Exception e) {
+                } catch (Exception e) {
                     errors.add(e);
                 }
             });
@@ -107,8 +106,7 @@ public class BroadcastTest extends AbstractBenchmark {
                         }
                     }
                     barrier.await(Config.PHASE_TIMEOUT, TimeUnit.SECONDS);
-                }
-                catch (Exception e) {
+                } catch (Exception e) {
                     errors.add(e);
                 }
             });
@@ -125,8 +123,7 @@ public class BroadcastTest extends AbstractBenchmark {
 
             barrier.await(Config.PHASE_TIMEOUT, TimeUnit.SECONDS);
             Assert.assertTrue(errors.isEmpty());
-        }
-        finally {
+        } finally {
             for (Thread worker : workers) {
                 worker.join();
             }
@@ -147,8 +144,7 @@ public class BroadcastTest extends AbstractBenchmark {
             try {
                 Thread.sleep(sleep);
                 arrived.add(new String(message, StandardCharsets.UTF_8));
-            }
-            catch (InterruptedException ignored) { }
+            } catch (InterruptedException ignored) { }
         }
     }
 

@@ -5,19 +5,6 @@
 // For details please see http://iris.karalabe.com/downloads#License
 package com.karalabe.iris.schemes;
 
-import com.karalabe.iris.ServiceHandler;
-import com.karalabe.iris.TunnelBridge;
-import com.karalabe.iris.protocol.RelayProtocol;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-
-import java.io.IOException;
-import java.rmi.RemoteException;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.TimeoutException;
-import java.util.concurrent.atomic.LongAdder;
-
 public class TunnelExecutor {
   /*  // Tunnel async construction result.
     private static class InitResult {

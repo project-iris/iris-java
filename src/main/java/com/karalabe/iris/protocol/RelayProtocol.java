@@ -214,7 +214,7 @@ public class RelayProtocol {
         long result = 0;
         for (int shift = 0; ; shift += 7) {
             final byte chunk = receiveByte();
-            result += ((long)(chunk & 127)) << shift;
+            result += ((long) (chunk & 127)) << shift;
             if ((chunk & 128) == 0) {
                 break;
             }

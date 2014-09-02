@@ -64,8 +64,7 @@ public class RequestTest extends AbstractBenchmark {
                         Assert.assertEquals(reply, request);
                     }
                     barrier.await(Config.PHASE_TIMEOUT, TimeUnit.SECONDS);
-                }
-                catch (Exception e) {
+                } catch (Exception e) {
                     errors.add(e);
                 }
             });
@@ -90,12 +89,11 @@ public class RequestTest extends AbstractBenchmark {
 
                         final byte[] replyBlob = handler.connection.request(Config.CLUSTER_NAME, requestBlob, 1000);
                         final String reply = new String(replyBlob, StandardCharsets.UTF_8);
-                        
+
                         Assert.assertEquals(reply, request);
                     }
                     barrier.await(Config.PHASE_TIMEOUT, TimeUnit.SECONDS);
-                }
-                catch (Exception e) {
+                } catch (Exception e) {
                     errors.add(e);
                 }
             });
@@ -109,8 +107,7 @@ public class RequestTest extends AbstractBenchmark {
 
             barrier.await(Config.PHASE_TIMEOUT, TimeUnit.SECONDS);
             Assert.assertTrue(errors.isEmpty());
-        }
-        finally {
+        } finally {
             for (Thread worker : workers) {
                 worker.join();
             }
@@ -130,8 +127,7 @@ public class RequestTest extends AbstractBenchmark {
             try {
                 Thread.sleep(sleep);
                 return request;
-            }
-            catch (InterruptedException e) {
+            } catch (InterruptedException e) {
                 throw new IllegalStateException(e);
             }
         }
@@ -152,9 +148,7 @@ public class RequestTest extends AbstractBenchmark {
 
             handler.connection.request(Config.CLUSTER_NAME, new byte[]{0x00}, SLEEP / 2);
             Assert.fail();
-        }
-        catch (TimeoutException ignored) {}
-        catch (Exception e) {
+        } catch (TimeoutException ignored) {} catch (Exception e) {
             Assert.fail();
         }
     }
@@ -178,11 +172,9 @@ public class RequestTest extends AbstractBenchmark {
                 new Thread(() -> {
                     try {
                         handler.connection.request(Config.CLUSTER_NAME, new byte[]{0x00}, 1000);
-                    }
-                    catch (Exception e) {
+                    } catch (Exception e) {
                         e.printStackTrace();
-                    }
-                    finally {
+                    } finally {
                         done.increment();
                     }
                 }).start();
@@ -209,22 +201,19 @@ public class RequestTest extends AbstractBenchmark {
             // Check that a 1 byte request succeeds
             try {
                 handler.connection.request(Config.CLUSTER_NAME, new byte[]{0x00}, 1000);
-            }
-            catch (Exception e) {
+            } catch (Exception e) {
                 Assert.fail();
             }
             // Check that a 2 byte request fails
             try {
                 handler.connection.request(Config.CLUSTER_NAME, new byte[]{0x00, 0x00}, 1000);
                 Assert.fail();
-            }
-            catch (Exception e) { }
+            } catch (Exception e) { }
 
             // Check that space freed gets replenished
             try {
                 handler.connection.request(Config.CLUSTER_NAME, new byte[]{0x00}, 1000);
-            }
-            catch (Exception e) {
+            } catch (Exception e) {
                 Assert.fail();
             }
         }

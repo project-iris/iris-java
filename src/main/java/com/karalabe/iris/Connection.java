@@ -1,8 +1,10 @@
 package com.karalabe.iris;
 
 import com.karalabe.iris.protocol.RelayProtocol;
-import com.karalabe.iris.schemes.*;
-import com.karalabe.iris.schemes.TunnelExecutor;
+import com.karalabe.iris.schemes.BroadcastScheme;
+import com.karalabe.iris.schemes.PublishScheme;
+import com.karalabe.iris.schemes.RequestScheme;
+import com.karalabe.iris.schemes.Validators;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 

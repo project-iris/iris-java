@@ -45,8 +45,7 @@ public class BoundedThreadPoolTest {
                 counter.increment();
                 try {
                     Thread.sleep(2 * TIMEOUT);
-                }
-                catch (InterruptedException e) {
+                } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
             }, 0, TIMEOUT));

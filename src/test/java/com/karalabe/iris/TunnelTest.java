@@ -24,8 +24,7 @@ public class TunnelTest extends AbstractBenchmark {
         @Override public void handleTunnel(@NotNull final Tunnel tunnel) {
             try {
                 tunnel.close();
-            }
-            catch (Exception e) {
+            } catch (Exception e) {
                 e.printStackTrace();
             }
         }
@@ -38,8 +37,7 @@ public class TunnelTest extends AbstractBenchmark {
         try (final Service ignored = Iris.register(Config.RELAY_PORT, Config.CLUSTER_NAME, handler)) {
             try (final Tunnel tunnel = handler.connection.tunnel(Config.CLUSTER_NAME, 1000)) {
                 tunnel.close();
-            }
-            catch (Exception e) {
+            } catch (Exception e) {
                 Assert.fail(e.getMessage());
             }
         }

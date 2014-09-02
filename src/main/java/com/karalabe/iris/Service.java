@@ -23,8 +23,7 @@ public class Service implements AutoCloseable {
         connection = new Connection(port, cluster, handler, limits);
         try {
             handler.init(connection);
-        }
-        catch (Exception e) {
+        } catch (Exception e) {
             connection.close();
         }
     }
