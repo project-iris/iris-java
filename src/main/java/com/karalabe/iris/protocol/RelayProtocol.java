@@ -423,23 +423,18 @@ public class RelayProtocol {
                         break;
 
                     case OP_TUNNEL_INIT:
-                        System.out.println("Tunnel init");
                         processTunnelInit(tunneler);
                         break;
                     case OP_TUNNEL_CONFIRM:
-                        System.out.println("Tunnel confirm");
                         processTunnelResult(tunneler);
                         break;
                     case OP_TUNNEL_ALLOW:
-                        System.out.println("Tunnel allowance");
                         processTunnelAllowance(tunneler);
                         break;
                     case OP_TUNNEL_TRANSFER:
-                        System.out.println("Tunnel transfer");
                         processTunnelTransfer(tunneler);
                         break;
                     case OP_TUNNEL_CLOSE:
-                        System.out.println("Tunnel close");
                         processTunnelClose(tunneler);
                         break;
 

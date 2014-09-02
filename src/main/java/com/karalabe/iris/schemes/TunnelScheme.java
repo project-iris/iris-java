@@ -20,15 +20,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 // Implements the tunnel communication pattern.
 public class TunnelScheme {
-    // Tunnel async construction result.
     private static class PendingBuild {
         boolean timeout;
         long    chunking;
-    }
-
-    // Tunnel async tear-down result.
-    private static class PendingClose {
-        String reason;
     }
 
     private static final int DEFAULT_TUNNEL_BUFFER = 64 * 1024 * 1024; // Size of a tunnel's input buffer.
@@ -36,10 +30,9 @@ public class TunnelScheme {
     private final RelayProtocol  protocol; // Network connection implementing the relay protocol
     private final ServiceHandler handler;  // Callback handler for processing inbound tunnels
 
-    private final AtomicInteger           nextId        = new AtomicInteger();          // Unique identifier for the next tunnel
-    private final Map<Long, PendingBuild> pendingInits  = new ConcurrentHashMap<>(128); // Result objects for pending tunnel
-    private final Map<Long, PendingClose> pendingCloses = new ConcurrentHashMap<>(128); // Result objects for pending tunnel
-    private final Map<Long, TunnelBridge> active        = new ConcurrentHashMap<>(128); // Currently active tunnels
+    private final AtomicInteger           nextId  = new AtomicInteger();          // Unique identifier for the next tunnel
+    private final Map<Long, PendingBuild> pending = new ConcurrentHashMap<>(128); // Result objects for pending tunnel
+    private final Map<Long, TunnelBridge> active  = new ConcurrentHashMap<>(128); // Currently active tunnels
 
     // Constructs a tunnel scheme implementation.
     public TunnelScheme(final RelayProtocol protocol, final ServiceHandler handler) {
@@ -55,7 +48,7 @@ public class TunnelScheme {
 
         // Create a temporary object to store the construction result
         final PendingBuild operation = new PendingBuild();
-        pendingInits.put(id, operation);
+        pending.put(id, operation);
 
         try {
             // Send the construction request and wait for the reply
@@ -67,12 +60,12 @@ public class TunnelScheme {
             if (operation.timeout) {
                 throw new TimeoutException("Tunnel construction timed out!");
             }
-            TunnelBridge bridge = new TunnelBridge(this, id, operation.chunking);
+            TunnelBridge bridge = new TunnelBridge(this, protocol, id, operation.chunking);
             active.put(id, bridge);
             return bridge;
         } finally {
             // Make sure the pending operations are cleaned up
-            pendingInits.remove(id);
+            pending.remove(id);
         }
     }
 
@@ -84,7 +77,7 @@ public class TunnelScheme {
             // Create the local tunnel endpoint
             final long id = nextId.addAndGet(1);
 
-            TunnelBridge bridge = new TunnelBridge(self, id, chunking);
+            TunnelBridge bridge = new TunnelBridge(self, protocol, id, chunking);
             active.put(id, bridge);
 
             // Confirm the tunnel creation to the relay node and send the allowance
@@ -102,7 +95,7 @@ public class TunnelScheme {
     // Forwards the tunnel construction result to the requested tunnel.
     public void handleTunnelResult(final long id, final long chunking) {
         // Fetch the pending construction result
-        final PendingBuild operation = pendingInits.get(id);
+        final PendingBuild operation = pending.get(id);
         if (operation == null) {
             // Already dead? Thread got interrupted!
             return;
@@ -133,62 +126,25 @@ public class TunnelScheme {
         }
     }
 
-    // Closes a particular tunnel instance.
-    private void closeBridge(final long id) throws IOException, InterruptedException {
-        TunnelBridge bridge = active.get(id);
-        if (bridge == null) {
-            throw new IllegalStateException("Non-existent tunnel");
-        }
-        active.remove(id);
-
-        // Create a temporary object to store the tear-down result
-        final PendingClose operation = new PendingClose();
-        pendingCloses.put(id, operation);
-
-        try {
-            // Send the tear-down request and wait until a reply arrives
-            synchronized (operation) {
-                protocol.sendTunnelClose(id);
-                operation.wait();
-            }
-            if (!operation.reason.isEmpty()) {
-                throw new RemoteException("Remote close failed: " + operation.reason);
-            }
-        } finally {
-            // Make sure the pending operations are cleaned up
-            pendingCloses.remove(id);
-        }
-    }
-
     // Terminates a tunnel, stopping all data transfers.
     public void handleTunnelClose(final long id, final String reason) throws IOException {
-        // If the tunnel is still alive, injet the closure reason
         TunnelBridge bridge = active.get(id);
         if (bridge != null) {
             bridge.handleClose(reason);
             active.remove(id);
         }
-        // If there is an active closure request, notify it
-        final PendingClose operation = pendingCloses.get(id);
-        if (operation == null) {
-            // Already dead? Thread got interrupted!
-            return;
-        }
-        // Fill in the operation result and wake the origin thread
-        operation.reason = reason;
-        synchronized (operation) {
-            operation.notify();
-        }
     }
 
-    public void close() throws IOException, InterruptedException {
-
+    // Terminates the tunnel primitive.
+    public void close() {
+        // TODO: Nothing for now?
     }
 
     // Bridge between the scheme implementation and an API tunnel instance.
     public class TunnelBridge {
-        private final long         id;     // Tunnel identifier for de/multiplexing
-        private final TunnelScheme scheme; // Protocol executor to the local relay
+        private final long          id;       // Tunnel identifier for de/multiplexing
+        private final TunnelScheme  scheme;   // Protocol executor to the local relay
+        private final RelayProtocol protocol; // Network connection implementing the relay protocol
 
         // Chunking fields
         private final long   chunkLimit;  // Maximum length of a data payload
@@ -198,12 +154,13 @@ public class TunnelScheme {
         private final Queue<byte[]> itoaBuffer; // Iris to application message buffer
 
         // Bookkeeping fields
-        private Boolean terminated = new Boolean(false); // Flag specifying whether the tunnel has been torn down
-        private String  exitStatus = null;               // Reason for termination, if not clean exit
+        private Object exitLock   = new Object(); // Flag specifying whether the tunnel has been torn down
+        private String exitStatus = null;         // Reason for termination, if not clean exit
 
-        public TunnelBridge(final TunnelScheme scheme, final long id, final long chunking) {
+        public TunnelBridge(final TunnelScheme scheme, final RelayProtocol protocol, final long id, final long chunking) {
             this.id = id;
             this.scheme = scheme;
+            this.protocol = protocol;
 
             chunkLimit = chunking;
 
@@ -218,16 +175,27 @@ public class TunnelScheme {
 
         }
 
+        // Handles the graceful remote closure of the tunnel.
         public void handleClose(final String reason) {
-            synchronized (terminated) {
+            synchronized (exitLock) {
                 exitStatus = reason;
-                terminated = true;
-                terminated.notifyAll();
+                exitLock.notifyAll();
             }
         }
 
+        // Requests the closure of the tunnel.
         public void close() throws IOException, InterruptedException {
-            scheme.closeBridge(id);
+            synchronized (exitLock) {
+                // Send the tear-down request if still alive and wait until a reply arrives
+                if (exitStatus == null) {
+                    protocol.sendTunnelClose(id);
+                    exitLock.wait();
+                }
+                // If a failure occurred, throw an exception
+                if (exitStatus.length() != 0) {
+                    throw new RemoteException("Remote close failed: " + exitStatus);
+                }
+            }
         }
     }
 }
