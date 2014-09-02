@@ -148,7 +148,7 @@ public class TunnelScheme {
 
         // Chunking fields
         private final long   chunkLimit;  // Maximum length of a data payload
-        private       byte[] chunkBuffer;// Current message being assembled
+        private       byte[] chunkBuffer; // Current message being assembled
 
         // Quality of service fields
         private final Queue<byte[]> itoaBuffer; // Iris to application message buffer
