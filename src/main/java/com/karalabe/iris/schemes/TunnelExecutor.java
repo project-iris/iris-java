@@ -1,7 +1,13 @@
-package com.karalabe.iris.protocol;
+// Copyright (c) 2014 Project Iris. All rights reserved.
+//
+// The current language binding is an official support library of the Iris
+// cloud messaging framework, and as such, the same licensing terms apply.
+// For details please see http://iris.karalabe.com/downloads#License
+package com.karalabe.iris.schemes;
 
 import com.karalabe.iris.ServiceHandler;
 import com.karalabe.iris.TunnelBridge;
+import com.karalabe.iris.protocol.RelayProtocol;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -12,8 +18,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.LongAdder;
 
-public class TunnelExecutor extends ExecutorBase {
-    // Tunnel async construction result.
+public class TunnelExecutor {
+  /*  // Tunnel async construction result.
     private static class InitResult {
         boolean timeout;
         long    chunking;
@@ -24,19 +30,20 @@ public class TunnelExecutor extends ExecutorBase {
         String reason;
     }
 
-    private final ServiceHandler handler; // Callback handler for processing inbound tunnels
+    private final RelayProtocol  protocol; // Network connection implementing the relay protocol
+    private final ServiceHandler handler;  // Callback handler for processing inbound tunnels
 
     private final LongAdder               nextId        = new LongAdder(); // Unique identifier for the next tunnel
     private final Map<Long, InitResult>   pendingInits  = new ConcurrentHashMap<>(128); // Result objects for pending tunnel
     private final Map<Long, CloseResult>  pendingCloses = new ConcurrentHashMap<>(128); // Result objects for pending tunnel
     private final Map<Long, TunnelBridge> active        = new ConcurrentHashMap<>(128); // Currently active tunnels
 
-    public TunnelExecutor(@NotNull final ProtocolBase protocol, @Nullable final ServiceHandler handler) {
-        super(protocol);
+    public TunnelExecutor(@NotNull final RelayProtocol protocol, @Nullable final ServiceHandler handler) {
+        this.protocol = protocol;
         this.handler = handler;
     }
 
-    @Override public void close() throws Exception {}
+    public void close() throws Exception {}
 
     public TunnelBridge tunnel(final String cluster, final long timeout) throws IOException, InterruptedException, TimeoutException {
         // Fetch a unique ID for the request
@@ -136,7 +143,7 @@ public class TunnelExecutor extends ExecutorBase {
         });
     }
 
-
+*/
    /*
 
     public void handleTunnelConfirm() throws IOException {

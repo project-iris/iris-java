@@ -1,7 +1,8 @@
 package com.karalabe.iris;
 
-import com.karalabe.iris.protocol.*;
-import com.karalabe.iris.protocol.TunnelExecutor;
+import com.karalabe.iris.protocol.RelayProtocol;
+import com.karalabe.iris.schemes.*;
+import com.karalabe.iris.schemes.TunnelExecutor;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -13,40 +14,39 @@ import java.util.concurrent.TimeoutException;
  * Message relay between the local app and the local iris node.
  **/
 public class Connection implements AutoCloseable {
-    private final ProtocolBase protocol;
-    private final Thread       runner;
+    private final RelayProtocol protocol;
+    private final Thread        runner;
 
     // Application layer fields
     private final ServiceHandler handler;
 
-    // Network layer fields
-    private final HandshakeExecutor    handshaker;
-    private final BroadcastExecutor    broadcaster;
-    private final RequestExecutor      requester;
-    private final SubscriptionExecutor subscriber;
-    private final TeardownExecutor     teardowner;
-    private final TunnelExecutor       tunneler;
+    // Communication pattern implementers
+    private final BroadcastScheme broadcaster;
+    private final RequestScheme   requester;
+    private final PublishScheme   subscriber;
+    //private final TunnelExecutor  tunneler;
 
     // Connects to the Iris network as a simple client.
-    Connection(int port, @NotNull String clusterName, @Nullable ServiceHandler handler, @Nullable ServiceLimits limits) throws IOException {
+    Connection(int port, @NotNull String cluster, @Nullable ServiceHandler handler, @Nullable ServiceLimits limits) throws IOException {
         // Load the default service limits if none specified
         if (limits == null) { limits = new ServiceLimits(); }
 
         this.handler = handler;
 
-        protocol = new ProtocolBase(port);
+        protocol = new RelayProtocol(port, cluster);
 
-        handshaker = new HandshakeExecutor(protocol);
-        broadcaster = new BroadcastExecutor(protocol, handler, limits);
-        requester = new RequestExecutor(protocol, handler, limits);
-        subscriber = new SubscriptionExecutor(protocol);
-        teardowner = new TeardownExecutor(protocol, handler);
-        tunneler = new TunnelExecutor(protocol, handler);
+        // Create the individual message pattern implementations
+        broadcaster = new BroadcastScheme(protocol, handler, limits);
+        requester = new RequestScheme(protocol, handler, limits);
+        subscriber = new PublishScheme(protocol);
+        //tunneler = new TunnelExecutor(protocol, handler);
 
-        handshaker.init(clusterName);
-        handshaker.handleInit();
-
-        runner = new Thread(this::processMessages);
+        // Start processing inbound network packets
+        runner = new Thread(new Runnable() {
+            @Override public void run() {
+                protocol.process(handler, broadcaster, requester, subscriber);
+            }
+        });
         runner.start();
     }
 
@@ -82,71 +82,18 @@ public class Connection implements AutoCloseable {
 
     public Tunnel tunnel(@NotNull final String cluster, final long timeout) throws IOException, TimeoutException, InterruptedException {
         Validators.validateRemoteClusterName(cluster);
-        return new Tunnel(tunneler.tunnel(cluster, timeout));
-    }
-
-    private void processMessages() {
-        try {
-            while (true) {
-                final OpCode opCode = OpCode.valueOf(protocol.receiveByte());
-                switch (opCode) {
-                    case BROADCAST:
-                        broadcaster.handleBroadcast();
-                        break;
-
-                    case REQUEST:
-                        requester.handleRequest();
-                        break;
-                    case REPLY:
-                        requester.handleReply();
-                        break;
-
-                    case PUBLISH:
-                        subscriber.handlePublish();
-                        break;
-
-                    case TUNNEL_BUILD:
-                        tunneler.handleTunnelInit();
-                        break;
-                    case TUNNEL_CONFIRM:
-                        tunneler.handleTunnelConfirm();
-                        break;
-                    case TUNNEL_ALLOW:
-                        //tunneler.handleTunnelAllow();
-                        break;
-                    case TUNNEL_TRANSFER:
-                        //tunneler.handleTunnelTransfer();
-                        break;
-                    case TUNNEL_CLOSE:
-                        //tunneler.handleTunnelClose();
-                        break;
-
-                    case CLOSE:
-                        teardowner.handleTeardown();
-                        return;
-
-                    default:
-                        throw new RemoteException(String.format("Illegal %s received: '%s'!", OpCode.class.getSimpleName(), opCode));
-                }
-            }
-        }
-        catch (Exception e) {
-            e.printStackTrace();
-        }
-        finally {
-            try {
-                protocol.close();
-            }
-            catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
+        return null;//new Tunnel(tunneler.tunnel(cluster, timeout));
     }
 
     @Override public void close() throws IOException, InterruptedException {
+        // Terminate the relay connection
         if (runner != null) {
-            teardowner.teardown();
+            protocol.sendClose();
             runner.join();
         }
+        // Tear down the individual scheme implementations
+        broadcaster.close();
+        requester.close();
+        subscriber.close();
     }
 }

@@ -5,7 +5,7 @@
 // For details please see http://iris.karalabe.com/downloads#License
 package com.karalabe.iris;
 
-import com.karalabe.iris.protocol.Validators;
+import com.karalabe.iris.schemes.Validators;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 

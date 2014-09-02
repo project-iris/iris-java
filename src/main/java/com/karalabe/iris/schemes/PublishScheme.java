@@ -3,29 +3,34 @@
 // The current language binding is an official support library of the Iris
 // cloud messaging framework, and as such, the same licensing terms apply.
 // For details please see http://iris.karalabe.com/downloads#License
-package com.karalabe.iris.protocol;
+package com.karalabe.iris.schemes;
 
 import com.karalabe.iris.TopicHandler;
 import com.karalabe.iris.TopicLimits;
 import com.karalabe.iris.common.BoundedThreadPool;
+import com.karalabe.iris.protocol.RelayProtocol;
 
 import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-public class SubscriptionExecutor extends ExecutorBase {
+// Implements the publish/subscribe communication pattern.
+public class PublishScheme {
     // Simple container for an individual subscription's state
     static class Subscription {
         public TopicHandler      handler; // Callback handler for processing inbound events
         public BoundedThreadPool workers; // Thread pool for limiting the concurrent processing
     }
 
-    private final Map<String, Subscription> active = new ConcurrentHashMap<>();
+    private final RelayProtocol protocol;                           // Network connection implementing the relay protocol
+    private final Map<String, Subscription> active = new ConcurrentHashMap<>(); // Active topic subscription pool
 
-    public SubscriptionExecutor(final ProtocolBase protocol) {
-        super(protocol);
+    // Constructs a publish/subscribe scheme implementation.
+    public PublishScheme(final RelayProtocol protocol) {
+        this.protocol = protocol;
     }
 
+    // Relays a subscription request to the local Iris node.
     public void subscribe(final String topic, final TopicHandler handler, final TopicLimits limits) throws IOException {
         // Make sure double subscriptions result in a failure
         final Subscription sub = new Subscription();
@@ -39,9 +44,10 @@ public class SubscriptionExecutor extends ExecutorBase {
         sub.handler = handler;
         sub.workers = new BoundedThreadPool(limits.eventThreads, limits.eventMemory);
 
-        protocol.send(OpCode.SUBSCRIBE, () -> protocol.sendString(topic));
+        protocol.sendSubscribe(topic);
     }
 
+    // Relays a subscription removal request to the local Iris node.
     public void unsubscribe(final String topic) throws IOException, InterruptedException {
         // Make sure there's an active subscription
         final Subscription sub;
@@ -54,27 +60,24 @@ public class SubscriptionExecutor extends ExecutorBase {
         // Leave the critical section and finish cleanup
         sub.workers.terminate(true);
 
-        protocol.send(OpCode.UNSUBSCRIBE, () -> protocol.sendString(topic));
+        protocol.sendUnsubscribe(topic);
     }
 
+    // Relays an event publish to the local Iris node.
     public void publish(final String topic, final byte[] event) throws IOException {
-        protocol.send(OpCode.PUBLISH, () -> {
-            protocol.sendString(topic);
-            protocol.sendBinary(event);
-        });
+        protocol.sendPublish(topic, event);
     }
 
-    public void handlePublish() throws IOException {
-        final String topic = protocol.receiveString();
-        final byte[] event = protocol.receiveBinary();
-
+    // Forwards a topic publish event to the topic subscription.
+    public void handlePublish(final String topic, final byte[] event) throws IOException {
         final Subscription sub = active.get(topic);
         if (sub != null) {
             sub.workers.schedule(() -> sub.handler.handleEvent(event), event.length);
         }
     }
 
-    @Override public void close() throws Exception {
+    // Terminates the publish/subscribe primitive.
+    public void close() throws InterruptedException {
         for (Subscription sub : active.values()) {
             sub.workers.terminate(true);
         }

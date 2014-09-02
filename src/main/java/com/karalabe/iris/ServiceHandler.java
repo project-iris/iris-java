@@ -35,7 +35,7 @@ public interface ServiceHandler {
     }
 
     // Callback notifying the service that the local relay dropped its connection.
-    default void handleDrop(@NotNull final RemoteException e) {
+    default void handleDrop(@NotNull final Exception e) {
         throw new RuntimeException(e);
     }
 }

@@ -90,7 +90,8 @@ public class RequestTest extends AbstractBenchmark {
 
                         final byte[] replyBlob = handler.connection.request(Config.CLUSTER_NAME, requestBlob, 1000);
                         final String reply = new String(replyBlob, StandardCharsets.UTF_8);
-                        // TODO do something with the reply
+                        
+                        Assert.assertEquals(reply, request);
                     }
                     barrier.await(Config.PHASE_TIMEOUT, TimeUnit.SECONDS);
                 }

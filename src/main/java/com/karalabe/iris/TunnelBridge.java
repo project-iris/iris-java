@@ -6,7 +6,7 @@
 
 package com.karalabe.iris;
 
-import com.karalabe.iris.protocol.TunnelExecutor;
+import com.karalabe.iris.schemes.TunnelExecutor;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.IOException;
@@ -38,6 +38,6 @@ public class TunnelBridge implements AutoCloseable {
     }
 
     @Override public void close() throws IOException, InterruptedException {
-        tunneler.closeBridge(id);
+        //tunneler.closeBridge(id);
     }
 }
