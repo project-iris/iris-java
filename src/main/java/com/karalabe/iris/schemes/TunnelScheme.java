@@ -9,12 +9,14 @@ import com.karalabe.iris.ServiceHandler;
 import com.karalabe.iris.Tunnel;
 import com.karalabe.iris.protocol.RelayProtocol;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.rmi.RemoteException;
+import java.util.Arrays;
 import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -51,6 +53,10 @@ public class TunnelScheme {
         pending.put(id, operation);
 
         try {
+            // Create the potential tunnel (needs pre-creation due to activation race)
+            TunnelBridge bridge = new TunnelBridge(this, id, 0);
+            active.put(id, bridge);
+
             // Send the construction request and wait for the reply
             synchronized (operation) {
                 protocol.sendTunnelInit(id, cluster, timeout);
@@ -60,9 +66,12 @@ public class TunnelScheme {
             if (operation.timeout) {
                 throw new TimeoutException("Tunnel construction timed out!");
             }
-            TunnelBridge bridge = new TunnelBridge(this, protocol, id, operation.chunking);
-            active.put(id, bridge);
+            bridge.chunkLimit = (int) operation.chunking;
             return bridge;
+        } catch (IOException|InterruptedException|TimeoutException e) {
+            // Make sure the half initialized tunnel is discarded
+            active.remove(id);
+            throw e;
         } finally {
             // Make sure the pending operations are cleaned up
             pending.remove(id);
@@ -77,7 +86,7 @@ public class TunnelScheme {
             // Create the local tunnel endpoint
             final long id = nextId.addAndGet(1);
 
-            TunnelBridge bridge = new TunnelBridge(self, protocol, id, chunking);
+            TunnelBridge bridge = new TunnelBridge(self, id, (int) chunking);
             active.put(id, bridge);
 
             // Confirm the tunnel creation to the relay node and send the allowance
@@ -142,45 +151,29 @@ public class TunnelScheme {
 
     // Bridge between the scheme implementation and an API tunnel instance.
     public class TunnelBridge {
-        private final long          id;       // Tunnel identifier for de/multiplexing
-        private final TunnelScheme  scheme;   // Protocol executor to the local relay
-        private final RelayProtocol protocol; // Network connection implementing the relay protocol
+        private final long         id;       // Tunnel identifier for de/multiplexing
+        private final TunnelScheme scheme;   // Protocol executor to the local relay
 
         // Chunking fields
-        private final long   chunkLimit;  // Maximum length of a data payload
-        private       byte[] chunkBuffer; // Current message being assembled
+        private int                   chunkLimit;    // Maximum length of a data payload
+        private ByteArrayOutputStream chunkBuffer;   // Current message being assembled
+        private int                   chunkCapacity; // Size of the message being assembled
 
         // Quality of service fields
-        private final Queue<byte[]> itoaBuffer; // Iris to application message buffer
+        private final Queue<byte[]> itoaBuffer = new LinkedBlockingQueue<>(); // Iris to application message buffer
+
+        private       long   atoiSpace = 0;            // Application to Iris space allowance
+        private final Object atoiLock  = new Object(); // Protects the allowance and doubles as a signaller
 
         // Bookkeeping fields
-        private Object exitLock   = new Object(); // Flag specifying whether the tunnel has been torn down
-        private String exitStatus = null;         // Reason for termination, if not clean exit
+        private final Object exitLock   = new Object(); // Tear-down synchronizer
+        private       String exitStatus = null;         // Reason for termination, if not clean exit
 
-        public TunnelBridge(final TunnelScheme scheme, final RelayProtocol protocol, final long id, final long chunking) {
+        public TunnelBridge(final TunnelScheme scheme, final long id, final int chunking) {
             this.id = id;
             this.scheme = scheme;
-            this.protocol = protocol;
 
             chunkLimit = chunking;
-
-            itoaBuffer = new ConcurrentLinkedQueue<>();
-        }
-
-        public void handleAllowance(final int space) {
-
-        }
-
-        public void handleTransfer(final int size, final byte[] chunk) {
-
-        }
-
-        // Handles the graceful remote closure of the tunnel.
-        public void handleClose(final String reason) {
-            synchronized (exitLock) {
-                exitStatus = reason;
-                exitLock.notifyAll();
-            }
         }
 
         // Requests the closure of the tunnel.
@@ -195,6 +188,111 @@ public class TunnelScheme {
                 if (exitStatus.length() != 0) {
                     throw new RemoteException("Remote close failed: " + exitStatus);
                 }
+            }
+        }
+
+        // Sends a message over the tunnel to the remote pair, blocking until the local
+        // Iris node receives the message or the operation times out.
+        public void send(final byte[] message, final long timeout) throws IOException, TimeoutException, InterruptedException {
+            // Split the original message into bounded chunks
+            for (int pos = 0; pos < message.length; pos += chunkLimit) {
+                final int end = Math.min(pos + chunkLimit, message.length);
+                final int sizeOrCont = (pos == 0 ? message.length : 0);
+                final byte[] chunk = Arrays.copyOfRange(message, pos, end);
+
+                // Wait for enough space allowance
+                synchronized (atoiLock) {
+                    while (atoiSpace < chunk.length) {
+                        if (timeout == 0) {
+                            atoiLock.wait();
+                        } else {
+                            final long available = atoiSpace;
+                            atoiLock.wait(timeout);
+
+                            if (atoiSpace == available) {
+                                throw new TimeoutException("");
+                            }
+                        }
+                    }
+                    atoiSpace -= chunk.length;
+                }
+                protocol.sendTunnelTransfer(id, sizeOrCont, chunk);
+            }
+        }
+
+        // Retrieves a message from the tunnel, blocking until one is available or the
+        // operation times out.
+        public byte[] receive(final long timeout) throws InterruptedException, TimeoutException {
+            synchronized (itoaBuffer) {
+                // Wait for a message to arrive if none is available
+                if (itoaBuffer.isEmpty()) {
+                    if (timeout > 0) {
+                        itoaBuffer.wait(timeout);
+                    } else {
+                        itoaBuffer.wait();
+                    }
+                    if (itoaBuffer.isEmpty()) {
+                        throw new TimeoutException("");
+                    }
+                }
+                // Fetch the pending message and send a remote allowance
+                final byte[] message = itoaBuffer.remove();
+                new Thread(() -> {
+                    try {
+                        protocol.sendTunnelAllowance(id, message.length);
+                    } catch (IOException ignored) {}
+                }).start();
+                return message;
+            }
+        }
+
+        // Increases the available data allowance of the remote endpoint.
+        public void handleAllowance(final int space) {
+            synchronized (atoiLock) {
+                atoiSpace += space;
+                atoiLock.notify();
+            }
+        }
+
+        // Adds the chunk to the currently building message and delivers it upon
+        // completion. If a new message starts, the old is discarded.
+        public void handleTransfer(final int size, final byte[] chunk) {
+            // If a new message is arriving, dump anything stored before
+            if (size != 0) {
+                if (chunkBuffer != null) {
+                    // A large transfer timed out, new started, grant the partials allowance
+                    new Thread(() -> {
+                        try {
+                            protocol.sendTunnelAllowance(id, chunkBuffer.size());
+                        } catch (IOException ignored) {}
+                    }).start();
+                }
+                chunkCapacity = size;
+                chunkBuffer = new ByteArrayOutputStream(chunkCapacity);
+            }
+            // Append the new chunk and check completion
+            try {
+                chunkBuffer.write(chunk);
+            } catch (IOException ignored) {}
+
+            if (chunkBuffer.size() == chunkCapacity) {
+                // Transfer the completed message into the inbound queue
+                synchronized (itoaBuffer) {
+                    itoaBuffer.add(chunkBuffer.toByteArray());
+                    chunkBuffer = null;
+                    chunkCapacity = 0;
+
+                    // Wake up any thread waiting for inbound data
+                    itoaBuffer.notify();
+                }
+            }
+        }
+
+        // Handles the graceful remote closure of the tunnel.
+        public void handleClose(final String reason) {
+            synchronized (exitLock) {
+                exitStatus = reason;
+                exitLock.notifyAll();
             }
         }
     }

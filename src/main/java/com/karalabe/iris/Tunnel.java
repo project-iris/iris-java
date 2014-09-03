@@ -18,6 +18,7 @@ public class Tunnel implements AutoCloseable {
     //
     // Infinite blocking is supported with by setting the timeout to zero (0).
     public void send(@NotNull final byte[] message, final long timeout) throws IOException, TimeoutException, InterruptedException {
+        bridge.send(message, timeout);
     }
 
     // Retrieves a message from the tunnel, blocking until one is available or the
@@ -25,7 +26,7 @@ public class Tunnel implements AutoCloseable {
     //
     // Infinite blocking is supported with by setting the timeout to zero (0).
     public byte[] receive(final long timeout) throws IOException, TimeoutException, InterruptedException {
-        return null;
+        return bridge.receive(timeout);
     }
 
     // Closes the tunnel between the pair. Any blocked read and write operation will be interrupted.

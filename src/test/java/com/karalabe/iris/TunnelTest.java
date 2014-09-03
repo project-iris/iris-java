@@ -41,7 +41,7 @@ public class TunnelTest extends AbstractBenchmark {
     // Tests multiple concurrent client and service tunnels.
     @BenchmarkOptions(benchmarkRounds = 1, warmupRounds = 0)
     @Test public void concurrentTunnels() throws Exception {
-        final int CLIENT_COUNT = 7, SERVER_COUNT = 7, TUNNEL_COUNT = 7, EXCHANGE_COUNT = 7;
+        final int CLIENT_COUNT = 0, SERVER_COUNT = 1, TUNNEL_COUNT = 1, EXCHANGE_COUNT = 5;
 
         final Collection<Thread> workers = new ArrayList<>(CLIENT_COUNT + SERVER_COUNT);
         final CyclicBarrier barrier = new CyclicBarrier(CLIENT_COUNT + SERVER_COUNT + 1);
