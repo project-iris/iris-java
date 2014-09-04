@@ -102,13 +102,12 @@ public class RequestScheme {
             // Already dead? Thread got interrupted!
             return;
         }
-        // Fill in the operation result
-        operation.timeout = (reply == null && error == null);
-        operation.reply = reply;
-        operation.error = error;
-
-        // Wake the origin thread
+        // Fill in the operation result and wake the origin thread
         synchronized (operation) {
+            operation.timeout = ((reply == null) && (error == null));
+            operation.reply = reply;
+            operation.error = error;
+
             operation.notify();
         }
     }

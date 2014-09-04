@@ -11,6 +11,7 @@ import org.jetbrains.annotations.NotNull;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -31,17 +32,25 @@ public class TunnelTest extends AbstractBenchmark {
 
         @Override public void handleTunnel(@NotNull final Tunnel tunnel) {
             try {
-                tunnel.close();
-            } catch (Exception e) {
-                e.printStackTrace();
+                while (true) {
+                    tunnel.send(tunnel.receive());
+                }
+            } catch (IOException | InterruptedException ignored) {
+                // Tunnel was torn down, clean up
+            } finally {
+                try {
+                    tunnel.close();
+                } catch (IOException | InterruptedException e) {
+                    e.printStackTrace();
+                }
             }
         }
     }
 
     // Tests multiple concurrent client and service tunnels.
-    @BenchmarkOptions(benchmarkRounds = 1, warmupRounds = 0)
+    @BenchmarkOptions(benchmarkRounds = 5, warmupRounds = 10)
     @Test public void concurrentTunnels() throws Exception {
-        final int CLIENT_COUNT = 0, SERVER_COUNT = 1, TUNNEL_COUNT = 1, EXCHANGE_COUNT = 5;
+        final int CLIENT_COUNT = 7, SERVER_COUNT = 7, TUNNEL_COUNT = 7, EXCHANGE_COUNT = 7;
 
         final Collection<Thread> workers = new ArrayList<>(CLIENT_COUNT + SERVER_COUNT);
         final CyclicBarrier barrier = new CyclicBarrier(CLIENT_COUNT + SERVER_COUNT + 1);
@@ -78,7 +87,7 @@ public class TunnelTest extends AbstractBenchmark {
                     barrier.await(Config.PHASE_TIMEOUT, TimeUnit.SECONDS);
 
                     // Execute the tunnel construction, message exchange and verification
-                    final String id = String.format("client #%d", server);
+                    final String id = String.format("server #%d", server);
                     buildExchangeVerify(id, handler.connection, TUNNEL_COUNT, EXCHANGE_COUNT);
                     barrier.await(Config.PHASE_TIMEOUT, TimeUnit.SECONDS);
                 } catch (Exception e) {

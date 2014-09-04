@@ -54,7 +54,7 @@ public class TunnelScheme {
 
         try {
             // Create the potential tunnel (needs pre-creation due to activation race)
-            TunnelBridge bridge = new TunnelBridge(this, id, 0);
+            final TunnelBridge bridge = new TunnelBridge(this, id, 0);
             active.put(id, bridge);
 
             // Send the construction request and wait for the reply
@@ -67,8 +67,11 @@ public class TunnelScheme {
                 throw new TimeoutException("Tunnel construction timed out!");
             }
             bridge.chunkLimit = (int) operation.chunking;
+
+            // Send the data allowance and return the active tunnel
+            protocol.sendTunnelAllowance(id, DEFAULT_TUNNEL_BUFFER);
             return bridge;
-        } catch (IOException|InterruptedException|TimeoutException e) {
+        } catch (IOException | InterruptedException | TimeoutException e) {
             // Make sure the half initialized tunnel is discarded
             active.remove(id);
             throw e;
@@ -94,7 +97,7 @@ public class TunnelScheme {
                 protocol.sendTunnelConfirm(initId, id);
                 protocol.sendTunnelAllowance(id, DEFAULT_TUNNEL_BUFFER);
                 handler.handleTunnel(new Tunnel(bridge));
-            } catch (Exception e) {
+            } catch (IOException e) {
                 active.remove(id);
                 e.printStackTrace();
             }
@@ -109,19 +112,18 @@ public class TunnelScheme {
             // Already dead? Thread got interrupted!
             return;
         }
-        // Fill in the operation result
-        operation.timeout = (chunking == 0);
-        operation.chunking = chunking;
-
-        // Wake the origin thread
+        // Fill in the operation result and wake teh origin thread
         synchronized (operation) {
+            operation.timeout = (chunking == 0);
+            operation.chunking = chunking;
+
             operation.notify();
         }
     }
 
     // Forwards a tunnel data allowance to the requested tunnel.
     public void handleTunnelAllowance(final long id, final int space) {
-        TunnelBridge bridge = active.get(id);
+        final TunnelBridge bridge = active.get(id);
         if (bridge != null) {
             bridge.handleAllowance(space);
         }
@@ -129,7 +131,7 @@ public class TunnelScheme {
 
     // Forwards a message chunk transfer to the requested tunnel.
     public void handleTunnelTransfer(final long id, final int size, final byte[] chunk) {
-        TunnelBridge bridge = active.get(id);
+        final TunnelBridge bridge = active.get(id);
         if (bridge != null) {
             bridge.handleTransfer(size, chunk);
         }
@@ -137,7 +139,7 @@ public class TunnelScheme {
 
     // Terminates a tunnel, stopping all data transfers.
     public void handleTunnelClose(final long id, final String reason) throws IOException {
-        TunnelBridge bridge = active.get(id);
+        final TunnelBridge bridge = active.get(id);
         if (bridge != null) {
             bridge.handleClose(reason);
             active.remove(id);
@@ -197,7 +199,7 @@ public class TunnelScheme {
             // Split the original message into bounded chunks
             for (int pos = 0; pos < message.length; pos += chunkLimit) {
                 final int end = Math.min(pos + chunkLimit, message.length);
-                final int sizeOrCont = (pos == 0 ? message.length : 0);
+                final int sizeOrCont = ((pos == 0) ? message.length : 0);
                 final byte[] chunk = Arrays.copyOfRange(message, pos, end);
 
                 // Wait for enough space allowance

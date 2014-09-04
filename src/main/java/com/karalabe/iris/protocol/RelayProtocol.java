@@ -376,7 +376,7 @@ public class RelayProtocol {
     // Retrieves a tunnel transfer allowance message.
     private void processTunnelAllowance(final TunnelScheme scheme) throws IOException {
         final long id = receiveVarint();
-        final int space = (int)receiveVarint();
+        final int space = (int) receiveVarint();
 
         scheme.handleTunnelAllowance(id, space);
     }
@@ -384,7 +384,7 @@ public class RelayProtocol {
     // Retrieves a tunnel data exchange message.
     private void processTunnelTransfer(final TunnelScheme scheme) throws IOException {
         final long id = receiveVarint();
-        final int size = (int)receiveVarint();
+        final int size = (int) receiveVarint();
         final byte[] payload = receiveBinary();
 
         scheme.handleTunnelTransfer(id, size, payload);
