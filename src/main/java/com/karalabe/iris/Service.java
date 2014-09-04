@@ -5,7 +5,6 @@
 // For details please see http://iris.karalabe.com/downloads#License
 package com.karalabe.iris;
 
-import com.karalabe.iris.schemes.Validators;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -18,8 +17,6 @@ public class Service implements AutoCloseable {
     // Connects to the Iris network and registers a new service instance as a member of the
     // specified service cluster, overriding the default quality of service limits.
     Service(final int port, @NotNull final String cluster, @NotNull final ServiceHandler handler, @Nullable final ServiceLimits limits) throws IOException, InterruptedException {
-        Validators.validateLocalClusterName(cluster);
-
         connection = new Connection(port, cluster, handler, limits);
         try {
             handler.init(connection);

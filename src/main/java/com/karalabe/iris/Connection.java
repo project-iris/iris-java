@@ -8,16 +8,46 @@ package com.karalabe.iris;
 import com.karalabe.iris.exceptions.RemoteException;
 import com.karalabe.iris.exceptions.TimeoutException;
 import com.karalabe.iris.protocol.RelayProtocol;
-import com.karalabe.iris.schemes.*;
+import com.karalabe.iris.schemes.BroadcastScheme;
+import com.karalabe.iris.schemes.PublishScheme;
+import com.karalabe.iris.schemes.RequestScheme;
+import com.karalabe.iris.schemes.TunnelScheme;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
+import java.util.regex.Pattern;
 
 /*
  * Message relay between the local app and the local iris node.
  **/
 public class Connection implements AutoCloseable {
+    static final class Validators {
+        private static final Pattern CLUSTER_NAME_PATTERN    = Pattern.compile("[^:]*");
+        private static final Pattern CLUSTER_ADDRESS_PATTERN = Pattern.compile("([^:]+:)?[^:]+");
+        private static final Pattern TOPIC_NAME_PATTERN      = Pattern.compile("[^:]*");
+
+        private Validators() {}
+
+        public static void validateClusterName(@NotNull final String cluster) {
+            if (!CLUSTER_NAME_PATTERN.matcher(cluster).matches()) {
+                throw new IllegalArgumentException("Cluster names may not contain the scoping operator ':'");
+            }
+        }
+
+        public static void validateClusterAddress(@NotNull final String cluster) {
+            if (!CLUSTER_ADDRESS_PATTERN.matcher(cluster).matches()) {
+                throw new IllegalArgumentException("Cluster addresses may contain a maximum of one scoping operator ':'");
+            }
+        }
+
+        public static void validateTopicName(@NotNull final String topic) {
+            if (!TOPIC_NAME_PATTERN.matcher(topic).matches()) {
+                throw new IllegalArgumentException("Topic names may not contain the scoping operator ':'");
+            }
+        }
+    }
+
     private final RelayProtocol protocol;
     private final Thread        runner;
 
@@ -29,6 +59,8 @@ public class Connection implements AutoCloseable {
 
     // Connects to the Iris network as a simple client.
     Connection(int port, @NotNull String cluster, @Nullable ServiceHandler handler, @Nullable ServiceLimits limits) throws IOException {
+        Validators.validateClusterName(cluster);
+
         // Load the default service limits if none specified
         if (limits == null) { limits = new ServiceLimits(); }
 
@@ -50,7 +82,7 @@ public class Connection implements AutoCloseable {
     //
     // The call blocks until the message is forwarded to the local Iris node.
     public void broadcast(@NotNull final String cluster, @NotNull final byte[] message) throws IOException {
-        Validators.validateRemoteClusterName(cluster);
+        Validators.validateClusterAddress(cluster);
         broadcaster.broadcast(cluster, message);
     }
 
@@ -59,7 +91,7 @@ public class Connection implements AutoCloseable {
     //
     // The timeout unit is in milliseconds. Anything lower will fail with an error.
     public byte[] request(@NotNull final String cluster, @NotNull final byte[] request, final long timeout) throws IOException, InterruptedException, RemoteException, TimeoutException {
-        Validators.validateRemoteClusterName(cluster);
+        Validators.validateClusterAddress(cluster);
         return requester.request(cluster, request, timeout);
     }
 
@@ -109,7 +141,7 @@ public class Connection implements AutoCloseable {
     //
     // The timeout unit is in milliseconds. Anything lower will fail with an error.
     public Tunnel tunnel(@NotNull final String cluster, final long timeout) throws IOException, TimeoutException, InterruptedException {
-        Validators.validateRemoteClusterName(cluster);
+        Validators.validateClusterAddress(cluster);
         return new Tunnel(tunneler.tunnel(cluster, timeout));
     }
 
@@ -119,10 +151,9 @@ public class Connection implements AutoCloseable {
     // The call blocks until the connection tear-down is confirmed by the Iris node.
     @Override public void close() throws IOException, InterruptedException {
         // Terminate the relay connection
-        if (runner != null) {
-            protocol.sendClose();
-            runner.join();
-        }
+        protocol.sendClose();
+        runner.join();
+
         // Tear down the individual scheme implementations
         tunneler.close();
         subscriber.close();
