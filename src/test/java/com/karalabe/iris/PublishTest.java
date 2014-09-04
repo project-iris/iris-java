@@ -7,7 +7,6 @@ package com.karalabe.iris;
 
 import com.carrotsearch.junitbenchmarks.AbstractBenchmark;
 import com.carrotsearch.junitbenchmarks.BenchmarkOptions;
-import org.jetbrains.annotations.NotNull;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -23,7 +22,7 @@ public class PublishTest extends AbstractBenchmark {
     static class PublishTestServiceHandler implements ServiceHandler {
         Connection connection;
 
-        @Override public void init(@NotNull final Connection connection) {
+        @Override public void init(final Connection connection) {
             this.connection = connection;
         }
     }
@@ -33,7 +32,7 @@ public class PublishTest extends AbstractBenchmark {
         final Set<String> arrived = Collections.synchronizedSet(new HashSet<>());
         Semaphore pending;
 
-        @Override public void handleEvent(@NotNull final byte[] event) {
+        @Override public void handleEvent(final byte[] event) {
             arrived.add(new String(event, StandardCharsets.UTF_8));
             pending.release(1);
         }
@@ -157,6 +156,7 @@ public class PublishTest extends AbstractBenchmark {
         }
     }
 
+    // Verifies the delivered topic events.
     private static void verifyEvents(int clients, int servers, int events, PublishTestTopicHandler handler) throws InterruptedException {
         // Wait for all pending events to arrive
         handler.pending.acquire((clients + servers) * events);
@@ -173,6 +173,76 @@ public class PublishTest extends AbstractBenchmark {
                 final String message = String.format("server #%d, event %d", j, k);
                 Assert.assertTrue(handler.arrived.contains(message));
             }
+        }
+    }
+
+    // Topic handler for the publish/subscribe limit tests.
+    static class PublishTestTopicLimitHandler implements TopicHandler {
+        final Set<String> arrived = Collections.synchronizedSet(new HashSet<>());
+        long sleep;
+
+        @Override public void handleEvent(final byte[] event) {
+            try {
+                Thread.sleep(sleep);
+                arrived.add(new String(event, StandardCharsets.UTF_8));
+            } catch (InterruptedException ignored) { }
+        }
+    }
+
+    // Tests the topic subscription thread limitation.
+    @BenchmarkOptions(benchmarkRounds = 5, warmupRounds = 10)
+    @Test public void threadLimiting() throws Exception {
+        // Test specific configurations
+        final int EVENT_COUNT = 4, SLEEP = 100;
+
+        // Connect to the local relay
+        try (final Connection conn = Iris.connect(Config.RELAY_PORT)) {
+            // Subscribe to a topic and wait for state propagation
+            final PublishTestTopicLimitHandler handler = new PublishTestTopicLimitHandler();
+            handler.sleep = SLEEP;
+
+            final TopicLimits limits = new TopicLimits();
+            limits.eventThreads = 1;
+
+            conn.subscribe(Config.TOPIC_NAME, handler, limits);
+            Thread.sleep(100);
+
+            // Send a few publishes
+            for (int i = 0; i < EVENT_COUNT; i++) {
+                conn.publish(Config.TOPIC_NAME, new byte[]{(byte) i});
+            }
+            // Wait for half time and verify that only half was processed
+            Thread.sleep((EVENT_COUNT / 2) * SLEEP + SLEEP / 2);
+            Assert.assertEquals(EVENT_COUNT / 2, handler.arrived.size());
+        }
+    }
+
+    // Tests the subscription memory limitation.
+    @BenchmarkOptions(benchmarkRounds = 5, warmupRounds = 10)
+    @Test public void memoryLimiting() throws Exception {
+        try (final Connection conn = Iris.connect(Config.RELAY_PORT)) {
+            // Subscribe to a topic and wait for state propagation
+            final PublishTestTopicHandler handler = new PublishTestTopicHandler();
+            handler.pending = new Semaphore(2);
+            handler.pending.acquire(2);
+
+            final TopicLimits limits = new TopicLimits();
+            limits.eventMemory = 1;
+
+            conn.subscribe(Config.TOPIC_NAME, handler, limits);
+            Thread.sleep(100);
+
+            // Check that a 1 byte publish passes
+            conn.publish(Config.TOPIC_NAME, new byte[]{0x00});
+            Assert.assertTrue(handler.pending.tryAcquire(100, TimeUnit.MILLISECONDS));
+
+            // Check that a 2 byte publish is dropped
+            conn.publish(Config.TOPIC_NAME, new byte[]{0x00, 0x00});
+            Assert.assertFalse(handler.pending.tryAcquire(100, TimeUnit.MILLISECONDS));
+
+            // Check that space freed gets replenished
+            conn.publish(Config.TOPIC_NAME, new byte[]{0x00});
+            Assert.assertTrue(handler.pending.tryAcquire(100, TimeUnit.MILLISECONDS));
         }
     }
 }
