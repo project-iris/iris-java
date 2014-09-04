@@ -7,17 +7,16 @@ package com.karalabe.iris.schemes;
 
 import com.karalabe.iris.ServiceHandler;
 import com.karalabe.iris.Tunnel;
+import com.karalabe.iris.exceptions.TimeoutException;
 import com.karalabe.iris.protocol.RelayProtocol;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.rmi.RemoteException;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 
 // Implements the tunnel communication pattern.
@@ -185,10 +184,6 @@ public class TunnelScheme {
                 if (exitStatus == null) {
                     protocol.sendTunnelClose(id);
                     exitLock.wait();
-                }
-                // If a failure occurred, throw an exception
-                if (exitStatus.length() != 0) {
-                    throw new RemoteException("Remote close failed: " + exitStatus);
                 }
             }
         }

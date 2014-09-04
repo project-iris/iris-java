@@ -7,19 +7,19 @@ package com.karalabe.iris;
 
 import com.carrotsearch.junitbenchmarks.AbstractBenchmark;
 import com.carrotsearch.junitbenchmarks.BenchmarkOptions;
+import com.karalabe.iris.exceptions.RemoteException;
+import com.karalabe.iris.exceptions.TimeoutException;
 import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.rmi.RemoteException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.LongAdder;
 
@@ -294,7 +294,7 @@ public class RequestTest extends AbstractBenchmark {
                         handler.connection.request(Config.CLUSTER_NAME, new byte[]{0x00}, 1);
                     } catch (TimeoutException ignore) {
                         // All ok
-                    } catch (IOException | InterruptedException e) {
+                    } catch (IOException | RemoteException | InterruptedException e) {
                         e.printStackTrace();
                     }
                 });

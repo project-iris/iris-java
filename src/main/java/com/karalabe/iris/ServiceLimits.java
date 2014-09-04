@@ -5,6 +5,7 @@
 // For details please see http://iris.karalabe.com/downloads#License
 package com.karalabe.iris;
 
+// User limits of the threading and memory usage of a registered service.
 public class ServiceLimits {
     // Broadcast handlers to execute concurrently
     public int broadcastThreads = 4 * Runtime.getRuntime().availableProcessors();

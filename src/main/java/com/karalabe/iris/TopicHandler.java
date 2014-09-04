@@ -9,6 +9,7 @@ import org.jetbrains.annotations.NotNull;
 
 // Callback interface for processing events from a single subscribed topic.
 public interface TopicHandler {
-    // Callback invoked whenever an event is published to the topic subscribed to by this particular handler.
+    // Callback invoked whenever an event is published to the topic subscribed to
+    // by this particular handler.
     default void handleEvent(@NotNull final byte[] event) {}
 }

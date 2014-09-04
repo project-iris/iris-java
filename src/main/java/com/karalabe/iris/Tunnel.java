@@ -1,11 +1,19 @@
+// Copyright (c) 2014 Project Iris. All rights reserved.
+//
+// The current language binding is an official support library of the Iris
+// cloud messaging framework, and as such, the same licensing terms apply.
+// For details please see http://iris.karalabe.com/downloads#License
 package com.karalabe.iris;
 
+import com.karalabe.iris.exceptions.TimeoutException;
 import com.karalabe.iris.schemes.TunnelScheme.TunnelBridge;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.IOException;
-import java.util.concurrent.TimeoutException;
 
+// Communication stream between the local application and a remote endpoint. The
+// ordered delivery of messages is guaranteed and the message flow between the
+// peers is throttled.
 public class Tunnel implements AutoCloseable {
     private final TunnelBridge bridge;
 

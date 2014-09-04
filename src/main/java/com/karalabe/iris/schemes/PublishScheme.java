@@ -48,7 +48,7 @@ public class PublishScheme {
     }
 
     // Relays a subscription removal request to the local Iris node.
-    public void unsubscribe(final String topic) throws IOException, InterruptedException {
+    public void unsubscribe(final String topic) throws IOException {
         // Make sure there's an active subscription
         final Subscription sub;
         synchronized (active) {
@@ -58,8 +58,11 @@ public class PublishScheme {
             sub = active.remove(topic);
         }
         // Leave the critical section and finish cleanup
-        sub.workers.terminate(true);
-
+        try {
+            sub.workers.terminate(true);
+        } catch (InterruptedException ignored) {
+            // Someone just killed our killer
+        }
         protocol.sendUnsubscribe(topic);
     }
 

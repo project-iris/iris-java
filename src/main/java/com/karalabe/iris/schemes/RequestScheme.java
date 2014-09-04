@@ -8,13 +8,13 @@ package com.karalabe.iris.schemes;
 import com.karalabe.iris.ServiceHandler;
 import com.karalabe.iris.ServiceLimits;
 import com.karalabe.iris.common.BoundedThreadPool;
+import com.karalabe.iris.exceptions.RemoteException;
+import com.karalabe.iris.exceptions.TimeoutException;
 import com.karalabe.iris.protocol.RelayProtocol;
 
 import java.io.IOException;
-import java.rmi.RemoteException;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
 
 // Implements the request/reply communication pattern.

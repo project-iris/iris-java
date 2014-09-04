@@ -11,6 +11,7 @@
 package com.karalabe.iris.protocol;
 
 import com.karalabe.iris.ServiceHandler;
+import com.karalabe.iris.exceptions.RemoteException;
 import com.karalabe.iris.schemes.BroadcastScheme;
 import com.karalabe.iris.schemes.PublishScheme;
 import com.karalabe.iris.schemes.RequestScheme;
@@ -25,7 +26,6 @@ import java.net.ProtocolException;
 import java.net.Socket;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
-import java.rmi.RemoteException;
 import java.util.concurrent.atomic.AtomicInteger;
 
 // Wire protocol for communicating with the Iris relay endpoint.
