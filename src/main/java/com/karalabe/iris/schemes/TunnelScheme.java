@@ -196,6 +196,9 @@ public class TunnelScheme {
         // Sends a message over the tunnel to the remote pair, blocking until the local
         // Iris node receives the message or the operation times out.
         public void send(final byte[] message, final long timeout) throws IOException, TimeoutException, InterruptedException {
+            // Calculate the deadline for the operation to finish
+            final long deadline = System.nanoTime() + timeout * 10000000;
+
             // Split the original message into bounded chunks
             for (int pos = 0; pos < message.length; pos += chunkLimit) {
                 final int end = Math.min(pos + chunkLimit, message.length);
@@ -208,12 +211,11 @@ public class TunnelScheme {
                         if (timeout == 0) {
                             atoiLock.wait();
                         } else {
-                            final long available = atoiSpace;
-                            atoiLock.wait(timeout);
-
-                            if (atoiSpace == available) {
+                            final long sleep = (deadline - System.nanoTime()) / 10000000;
+                            if (sleep <= 0) {
                                 throw new TimeoutException("");
                             }
+                            atoiLock.wait(sleep);
                         }
                     }
                     atoiSpace -= chunk.length;
