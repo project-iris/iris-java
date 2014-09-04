@@ -16,6 +16,8 @@ import java.util.Arrays;
 import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -34,6 +36,8 @@ public class TunnelScheme {
     private final AtomicInteger           nextId  = new AtomicInteger();          // Unique identifier for the next tunnel
     private final Map<Long, PendingBuild> pending = new ConcurrentHashMap<>(128); // Result objects for pending tunnel
     private final Map<Long, TunnelBridge> active  = new ConcurrentHashMap<>(128); // Currently active tunnels
+
+    private final ExecutorService throttler = Executors.newSingleThreadExecutor(); // Executor for sending back async tunnel allowances
 
     // Constructs a tunnel scheme implementation.
     public TunnelScheme(final RelayProtocol protocol, final ServiceHandler handler) {
@@ -147,7 +151,7 @@ public class TunnelScheme {
 
     // Terminates the tunnel primitive.
     public void close() {
-        // TODO: Nothing for now?
+        throttler.shutdownNow();
     }
 
     // Bridge between the scheme implementation and an API tunnel instance.
@@ -236,11 +240,11 @@ public class TunnelScheme {
                 }
                 // Fetch the pending message and send a remote allowance
                 final byte[] message = itoaBuffer.remove();
-                new Thread(() -> {
+                throttler.execute(() -> {
                     try {
                         protocol.sendTunnelAllowance(id, message.length);
                     } catch (IOException ignored) {}
-                }).start();
+                });
                 return message;
             }
         }
@@ -261,11 +265,11 @@ public class TunnelScheme {
                 if (chunkBuffer != null) {
                     // A large transfer timed out, new started, grant the partials allowance
                     final int allowance = chunkBuffer.size();
-                    new Thread(() -> {
+                    throttler.execute(() -> {
                         try {
                             protocol.sendTunnelAllowance(id, allowance);
                         } catch (IOException ignored) {}
-                    }).start();
+                    });
                 }
                 chunkCapacity = size;
                 chunkBuffer = new ByteArrayOutputStream(chunkCapacity);
