@@ -19,6 +19,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 @SuppressWarnings("JUnitTestNG")
 public class TunnelTest extends AbstractBenchmark {
@@ -153,6 +154,74 @@ public class TunnelTest extends AbstractBenchmark {
         } finally {
             for (Thread worker : workers) {
                 worker.join();
+            }
+        }
+    }
+
+    // Tests that unanswered tunnels timeout correctly.
+    @BenchmarkOptions(benchmarkRounds = 5, warmupRounds = 10)
+    @Test public void timeout() throws Exception {
+        try (final Connection conn = Iris.connect(Config.RELAY_PORT)) {
+            // Open a new tunnel to a non existent server
+            try (final Tunnel tunnel = conn.tunnel(Config.CLUSTER_NAME, 100)) {
+                Assert.fail("Mismatching tunneling result: have: success, want TimeoutException");
+            } catch (TimeoutException ignored) {
+                // All ok
+            }
+        }
+    }
+
+    // Tests that large messages get delivered properly.
+    @BenchmarkOptions(benchmarkRounds = 5, warmupRounds = 10)
+    @Test public void chunking() throws Exception {
+        // Create the service handler
+        final TunnelTestHandler handler = new TunnelTestHandler();
+
+        // Register a new service to the relay
+        try (final Service ignored = Iris.register(Config.RELAY_PORT, Config.CLUSTER_NAME, handler)) {
+            // Construct the tunnel
+            try (final Tunnel tunnel = handler.connection.tunnel(Config.CLUSTER_NAME, 1000)) {
+                // Create and transfer a huge message
+                final byte[] blob = new byte[16 * 1024 * 1024];
+                for (int i = 0; i < blob.length; i++) {
+                    blob[i] = (byte) i;
+                }
+                tunnel.send(blob, 10000);
+
+                final byte[] back = tunnel.receive(10000);
+                Assert.assertArrayEquals(blob, back);
+            }
+        }
+    }
+
+    // Tests that a tunnel remains operational even after overloads (partially
+    // transferred huge messages timeouting).
+    @BenchmarkOptions(benchmarkRounds = 5, warmupRounds = 10)
+    @Test public void overload() throws Exception {
+        // Create the service handler
+        final TunnelTestHandler handler = new TunnelTestHandler();
+
+        // Register a new service to the relay
+        try (final Service ignored = Iris.register(Config.RELAY_PORT, Config.CLUSTER_NAME, handler)) {
+            // Construct the tunnel
+            try (final Tunnel tunnel = handler.connection.tunnel(Config.CLUSTER_NAME, 1000)) {
+                // Overload the tunnel by partially transferring huge messages
+                final byte[] blob = new byte[64 * 1024 * 1024];
+                for (int i = 0; i < 10; i++) {
+                    try {
+                        tunnel.send(blob, 1);
+                        Assert.fail("Tunnel send didn't time out");
+                    } catch (TimeoutException ignore) {
+                        // All ok
+                    }
+                }
+                // Verify that the tunnel is still operational
+                final byte[] data = {0x00, 0x01, 0x00, 0x02, 0x00, 0x03, 0x00, 0x04};
+                for (int i = 0; i < 10; i++) { // Iteration's important, the first will always cross (allowance ignore)
+                    tunnel.send(data, 1000);
+                    final byte[] back = tunnel.receive(1000);
+                    Assert.assertArrayEquals(data, back);
+                }
             }
         }
     }

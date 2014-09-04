@@ -263,9 +263,10 @@ public class TunnelScheme {
             if (size != 0) {
                 if (chunkBuffer != null) {
                     // A large transfer timed out, new started, grant the partials allowance
+                    final int allowance = chunkBuffer.size();
                     new Thread(() -> {
                         try {
-                            protocol.sendTunnelAllowance(id, chunkBuffer.size());
+                            protocol.sendTunnelAllowance(id, allowance);
                         } catch (IOException ignored) {}
                     }).start();
                 }
