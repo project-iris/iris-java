@@ -78,7 +78,7 @@ public class RequestScheme {
             try {
                 response = handler.handleRequest(request);
             } catch (Exception e) {
-                error = e.toString();
+                error = e.getMessage();
             }
             // Try and send back the reply
             try {

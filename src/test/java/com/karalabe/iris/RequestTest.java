@@ -12,6 +12,7 @@ import org.junit.Test;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.rmi.RemoteException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -32,8 +33,21 @@ public class RequestTest extends AbstractBenchmark {
             this.connection = connection;
         }
 
-        @Override public byte[] handleRequest(final byte[] request) throws IllegalStateException {
+        @Override public byte[] handleRequest(final byte[] request) {
             return request;
+        }
+    }
+
+    // Service handler for the request/reply failure tests.
+    static class RequestTestFailHandler implements ServiceHandler {
+        Connection connection;
+
+        @Override public void init(final Connection connection) {
+            this.connection = connection;
+        }
+
+        @Override public byte[] handleRequest(final byte[] request) throws RemoteException {
+            throw new RemoteException(new String(request));
         }
     }
 
@@ -111,6 +125,30 @@ public class RequestTest extends AbstractBenchmark {
         } finally {
             for (Thread worker : workers) {
                 worker.join();
+            }
+        }
+    }
+
+    // Tests request failure forwarding.
+    @BenchmarkOptions(benchmarkRounds = 5, warmupRounds = 10)
+    @Test public void fail() throws Exception {
+        // Test specific configurations
+        final int REQUEST_COUNT = 125;
+
+        // Create the service handler
+        final RequestTestFailHandler handler = new RequestTestFailHandler();
+        try (final Service ignored = Iris.register(Config.RELAY_PORT, Config.CLUSTER_NAME, handler)) {
+            // Request from the failing service cluster
+            for (int i = 0; i < REQUEST_COUNT; i++) {
+                final String request = String.format("failure %d", i);
+                final byte[] requestBlob = request.getBytes(StandardCharsets.UTF_8);
+
+                try {
+                    handler.connection.request(Config.CLUSTER_NAME, requestBlob, 1000);
+                    Assert.fail("Request succeeded, should have failed!");
+                } catch (RemoteException e) {
+                    Assert.assertEquals(request, e.getMessage());
+                }
             }
         }
     }
@@ -200,23 +238,16 @@ public class RequestTest extends AbstractBenchmark {
 
         try (final Service ignored = Iris.register(Config.RELAY_PORT, Config.CLUSTER_NAME, handler, limits)) {
             // Check that a 1 byte request succeeds
-            try {
-                handler.connection.request(Config.CLUSTER_NAME, new byte[]{0x00}, 1000);
-            } catch (Exception e) {
-                Assert.fail();
-            }
+            handler.connection.request(Config.CLUSTER_NAME, new byte[]{0x00}, 1000);
+
             // Check that a 2 byte request fails
             try {
                 handler.connection.request(Config.CLUSTER_NAME, new byte[]{0x00, 0x00}, 1000);
                 Assert.fail();
-            } catch (Exception e) { }
+            } catch (TimeoutException ignore) { }
 
             // Check that space freed gets replenished
-            try {
-                handler.connection.request(Config.CLUSTER_NAME, new byte[]{0x00}, 1000);
-            } catch (Exception e) {
-                Assert.fail();
-            }
+            handler.connection.request(Config.CLUSTER_NAME, new byte[]{0x00}, 1000);
         }
     }
 
@@ -257,7 +288,7 @@ public class RequestTest extends AbstractBenchmark {
         try (final Service ignored = Iris.register(Config.RELAY_PORT, Config.CLUSTER_NAME, handler, limits)) {
             // Start a batch of concurrent requesters (all but one should be scheduled remotely)
             final Collection<Thread> workers = new ArrayList<>(REQUEST_COUNT);
-            for (int i=0; i<REQUEST_COUNT; i++) {
+            for (int i = 0; i < REQUEST_COUNT; i++) {
                 final Thread worker = new Thread(() -> {
                     try {
                         handler.connection.request(Config.CLUSTER_NAME, new byte[]{0x00}, 1);
