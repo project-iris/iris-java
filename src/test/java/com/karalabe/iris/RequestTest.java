@@ -7,10 +7,10 @@ package com.karalabe.iris;
 
 import com.carrotsearch.junitbenchmarks.AbstractBenchmark;
 import com.carrotsearch.junitbenchmarks.BenchmarkOptions;
-import org.jetbrains.annotations.NotNull;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -19,6 +19,7 @@ import java.util.List;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.LongAdder;
 
 @SuppressWarnings("JUnitTestNG")
@@ -27,11 +28,11 @@ public class RequestTest extends AbstractBenchmark {
     static class RequestTestHandler implements ServiceHandler {
         Connection connection;
 
-        @Override public void init(@NotNull final Connection connection) {
+        @Override public void init(final Connection connection) {
             this.connection = connection;
         }
 
-        @Override public byte[] handleRequest(@NotNull final byte[] request) throws IllegalStateException {
+        @Override public byte[] handleRequest(final byte[] request) throws IllegalStateException {
             return request;
         }
     }
@@ -119,11 +120,11 @@ public class RequestTest extends AbstractBenchmark {
         Connection connection;
         int        sleep;
 
-        @Override public void init(@NotNull final Connection connection) {
+        @Override public void init(final Connection connection) {
             this.connection = connection;
         }
 
-        @Override public byte[] handleRequest(@NotNull final byte[] request) {
+        @Override public byte[] handleRequest(final byte[] request) {
             try {
                 Thread.sleep(sleep);
                 return request;
@@ -216,6 +217,66 @@ public class RequestTest extends AbstractBenchmark {
             } catch (Exception e) {
                 Assert.fail();
             }
+        }
+    }
+
+    // Service handler for the request/reply expiry tests.
+    static class RequestTestExpiryHandler implements ServiceHandler {
+        Connection connection;
+        int        sleep;
+        AtomicInteger done = new AtomicInteger(0);
+
+        @Override public void init(final Connection connection) {
+            this.connection = connection;
+        }
+
+        @Override public byte[] handleRequest(final byte[] request) {
+            try {
+                Thread.sleep(sleep);
+                done.addAndGet(1);
+                return request;
+            } catch (InterruptedException e) {
+                throw new IllegalStateException(e);
+            }
+        }
+    }
+
+    // Tests that enqueued but expired requests don't get executed.
+    @BenchmarkOptions(benchmarkRounds = 5, warmupRounds = 10)
+    @Test public void expiration() throws Exception {
+        // Test specific configurations
+        final int REQUEST_COUNT = 4, SLEEP = 25;
+
+        // Create the service handler and limiter
+        final RequestTestExpiryHandler handler = new RequestTestExpiryHandler();
+        handler.sleep = SLEEP;
+
+        final ServiceLimits limits = new ServiceLimits();
+        limits.requestThreads = 1;
+
+        try (final Service ignored = Iris.register(Config.RELAY_PORT, Config.CLUSTER_NAME, handler, limits)) {
+            // Start a batch of concurrent requesters (all but one should be scheduled remotely)
+            final Collection<Thread> workers = new ArrayList<>(REQUEST_COUNT);
+            for (int i=0; i<REQUEST_COUNT; i++) {
+                final Thread worker = new Thread(() -> {
+                    try {
+                        handler.connection.request(Config.CLUSTER_NAME, new byte[]{0x00}, 1);
+                    } catch (TimeoutException ignore) {
+                        // All ok
+                    } catch (IOException | InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                });
+                worker.start();
+                workers.add(worker);
+            }
+
+            // Wait for all of them to complete and verify that all but 1 expired
+            for (Thread worker : workers) {
+                worker.join();
+            }
+            Thread.sleep((REQUEST_COUNT + 1) * SLEEP);
+            Assert.assertEquals(1, handler.done.get());
         }
     }
 }
