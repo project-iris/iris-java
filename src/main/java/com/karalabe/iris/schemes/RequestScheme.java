@@ -80,12 +80,19 @@ public class RequestScheme {
 
     // Schedules an application request for the service handler to process.
     public void handleRequest(final long id, final byte[] request, final long timeout) {
+        final ContextualLogger logger = new ContextualLogger(this.logger, "remote_request", String.valueOf(id));
+
         final long start = System.nanoTime();
         if (!workers.schedule(() -> {
+            logger.loadContext();
+
             // Ensure that expired tasks get dropped instead of executed
-            if (((System.nanoTime() - start) / 1_000_000) >= timeout) {
+            final long elapsed = (System.nanoTime() - start) / 1000000;
+            if (elapsed >= timeout) {
                 logger.error("Dumping expired scheduled request",
-                             "timeout", String.valueOf(timeout));
+                             "scheduled", String.valueOf(elapsed),
+                             "timeout", String.valueOf(timeout),
+                             "expired", String.valueOf(elapsed - timeout));
                 return;
             }
 
@@ -95,7 +102,7 @@ public class RequestScheme {
             // Execute the request and flatten any error
             try {
                 response = handler.handleRequest(request);
-            } catch (Exception e) {
+            } catch (RemoteException e) {
                 error = e.getMessage();
             }
             // Try and send back the reply

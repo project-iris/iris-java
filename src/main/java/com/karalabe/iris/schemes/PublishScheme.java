@@ -49,7 +49,7 @@ public class PublishScheme {
             active.put(topic, sub);
         }
         // Leave the critical section and finish initialization
-        sub.logger  = new ContextualLogger(logger, "topic", String.valueOf(nextId.incrementAndGet()));
+        sub.logger = new ContextualLogger(logger, "topic", String.valueOf(nextId.incrementAndGet()));
         sub.logger.loadContext();
         sub.logger.info("Subscribing to new topic", "name", topic,
                         "limits", String.format("%dT|%dB", limits.eventThreads, limits.eventMemory));
@@ -100,11 +100,14 @@ public class PublishScheme {
     public void handlePublish(final String topic, final byte[] event) throws IOException {
         final Subscription sub = active.get(topic);
         if (sub != null) {
-            if (!sub.workers.schedule(() -> sub.handler.handleEvent(event), event.length)) {
+            if (!sub.workers.schedule(() -> {
+                sub.logger.loadContext();
+                sub.handler.handleEvent(event);
+            }, event.length)) {
                 sub.logger.loadContext();
                 sub.logger.error("Event exceeded memory allowance",
-                                "limit", String.valueOf(sub.limits.eventMemory),
-                                "size", String.valueOf(event.length));
+                                 "limit", String.valueOf(sub.limits.eventMemory),
+                                 "size", String.valueOf(event.length));
                 sub.logger.unloadContext();
             }
         } else {

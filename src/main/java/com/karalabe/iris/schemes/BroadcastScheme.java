@@ -42,7 +42,10 @@ public class BroadcastScheme {
 
     // Schedules an application broadcast message for the service handler to process.
     public void handleBroadcast(final byte[] message) {
-        if (!workers.schedule(() -> handler.handleBroadcast(message), message.length)) {
+        if (!workers.schedule(() -> {
+            logger.loadContext();
+            handler.handleBroadcast(message);
+        }, message.length)) {
             logger.loadContext();
             logger.error("Broadcast exceeded memory allowance",
                          "limit", String.valueOf(limits.broadcastMemory),
