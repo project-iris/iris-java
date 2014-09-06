@@ -210,7 +210,7 @@ public class RequestTest extends AbstractBenchmark {
             for (int j = 0; j < REQUEST_COUNT; j++) {
                 new Thread(() -> {
                     try {
-                        handler.connection.request(Config.CLUSTER_NAME, new byte[]{0x00}, 1000);
+                        handler.connection.request(Config.CLUSTER_NAME, new byte[]{0x00}, (REQUEST_COUNT + 1) * SLEEP);
                     } catch (Exception e) {
                         e.printStackTrace();
                     } finally {
@@ -291,7 +291,7 @@ public class RequestTest extends AbstractBenchmark {
             for (int i = 0; i < REQUEST_COUNT; i++) {
                 final Thread worker = new Thread(() -> {
                     try {
-                        handler.connection.request(Config.CLUSTER_NAME, new byte[]{0x00}, 1);
+                        handler.connection.request(Config.CLUSTER_NAME, new byte[]{0x00}, 10);
                     } catch (TimeoutException ignore) {
                         // All ok
                     } catch (IOException | RemoteException | InterruptedException e) {

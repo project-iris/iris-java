@@ -33,24 +33,4 @@ public class BoundedThreadPoolTest {
         Assert.assertTrue(pool.schedule(() -> {}, 1));
         Assert.assertFalse(pool.schedule(() -> {}, 2));
     }
-
-    // Tests that scheduled timeouts are complied with.
-    @Test public void timeout() throws Exception {
-        final int THREAD_COUNT = 1, MEMORY_SIZE = 1024, TASK_COUNT = 10, TIMEOUT = 100;
-        final BoundedThreadPool pool = new BoundedThreadPool(THREAD_COUNT, MEMORY_SIZE);
-
-        final LongAdder counter = new LongAdder();
-        for (int i = 0; i < TASK_COUNT; i++) {
-            Assert.assertTrue(pool.schedule(() -> {
-                counter.increment();
-                try {
-                    Thread.sleep(2 * TIMEOUT);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
-            }, 0, TIMEOUT));
-        }
-        pool.terminate(false);
-        Assert.assertEquals(1, counter.intValue());
-    }
 }

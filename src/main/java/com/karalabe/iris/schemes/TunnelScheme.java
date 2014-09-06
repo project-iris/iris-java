@@ -7,6 +7,7 @@ package com.karalabe.iris.schemes;
 
 import com.karalabe.iris.ServiceHandler;
 import com.karalabe.iris.Tunnel;
+import com.karalabe.iris.common.ContextualLogger;
 import com.karalabe.iris.exceptions.TimeoutException;
 import com.karalabe.iris.protocol.RelayProtocol;
 
@@ -30,8 +31,9 @@ public class TunnelScheme {
 
     private static final int DEFAULT_TUNNEL_BUFFER = 64 * 1024 * 1024; // Size of a tunnel's input buffer.
 
-    private final RelayProtocol  protocol; // Network connection implementing the relay protocol
-    private final ServiceHandler handler;  // Callback handler for processing inbound tunnels
+    private final RelayProtocol    protocol; // Network connection implementing the relay protocol
+    private final ServiceHandler   handler;  // Callback handler for processing inbound tunnels
+    private final ContextualLogger logger;   // Logger with connection id injected
 
     private final AtomicInteger           nextId  = new AtomicInteger();          // Unique identifier for the next tunnel
     private final Map<Long, PendingBuild> pending = new ConcurrentHashMap<>(128); // Result objects for pending tunnel
@@ -40,28 +42,33 @@ public class TunnelScheme {
     private final ExecutorService throttler = Executors.newSingleThreadExecutor(); // Executor for sending back async tunnel allowances
 
     // Constructs a tunnel scheme implementation.
-    public TunnelScheme(final RelayProtocol protocol, final ServiceHandler handler) {
+    public TunnelScheme(final RelayProtocol protocol, final ServiceHandler handler, final ContextualLogger logger) {
         this.protocol = protocol;
         this.handler = handler;
+        this.logger = logger;
     }
 
     // Relays a tunnel construction request to the local Iris node, waits for a
     // reply or timeout and potentially returns a new tunnel.
     public TunnelBridge tunnel(final String cluster, final long timeout) throws IOException, InterruptedException, TimeoutException {
         // Fetch a unique ID for the tunnel
-        final long id = nextId.addAndGet(1);
+        final long id = nextId.incrementAndGet();
 
         // Create a temporary object to store the construction result
         final PendingBuild operation = new PendingBuild();
         pending.put(id, operation);
 
-        try {
-            // Create the potential tunnel (needs pre-creation due to activation race)
-            final TunnelBridge bridge = new TunnelBridge(this, id, 0);
-            active.put(id, bridge);
+        // Create the potential tunnel (needs pre-creation due to activation race)
+        final TunnelBridge bridge = new TunnelBridge(id, 0, logger);
+        active.put(id, bridge);
 
+        try {
             // Send the construction request and wait for the reply
             synchronized (operation) {
+                bridge.logger.loadContext();
+                bridge.logger.info("Constructing outbound tunnel",
+                                   "cluster", cluster, "timeout", String.valueOf(timeout));
+
                 protocol.sendTunnelInit(id, cluster, timeout);
                 operation.wait();
             }
@@ -73,36 +80,46 @@ public class TunnelScheme {
 
             // Send the data allowance and return the active tunnel
             protocol.sendTunnelAllowance(id, DEFAULT_TUNNEL_BUFFER);
+            bridge.logger.info("Tunnel construction completed", "chunk_limit", String.valueOf(bridge.chunkLimit));
+
             return bridge;
         } catch (IOException | InterruptedException | TimeoutException e) {
+            bridge.logger.warn("Tunnel construction failed", "reason", e.getMessage());
+
             // Make sure the half initialized tunnel is discarded
             active.remove(id);
             throw e;
         } finally {
             // Make sure the pending operations are cleaned up
+            bridge.logger.unloadContext();
             pending.remove(id);
         }
     }
 
     // Opens a new local tunnel endpoint and binds it to the remote side.
     public void handleTunnelInit(final long initId, final long chunking) {
-        final TunnelScheme self = this;
-
         new Thread(() -> {
             // Create the local tunnel endpoint
             final long id = nextId.addAndGet(1);
 
-            TunnelBridge bridge = new TunnelBridge(self, id, (int) chunking);
+            TunnelBridge bridge = new TunnelBridge(id, (int) chunking, logger);
             active.put(id, bridge);
+
+            bridge.logger.loadContext();
+            bridge.logger.info("Accepting inbound tunnel", "chunk_limit", String.valueOf(chunking));
 
             // Confirm the tunnel creation to the relay node and send the allowance
             try {
                 protocol.sendTunnelConfirm(initId, id);
                 protocol.sendTunnelAllowance(id, DEFAULT_TUNNEL_BUFFER);
+
+                bridge.logger.info("Tunnel acceptance completed");
                 handler.handleTunnel(new Tunnel(bridge));
             } catch (IOException e) {
+                bridge.logger.warn("Tunnel acceptance failed", "reason", e.getMessage());
                 active.remove(id);
-                e.printStackTrace();
+            } finally {
+                bridge.logger.unloadContext();
             }
         }).start();
     }
@@ -156,8 +173,8 @@ public class TunnelScheme {
 
     // Bridge between the scheme implementation and an API tunnel instance.
     public class TunnelBridge {
-        private final long         id;       // Tunnel identifier for de/multiplexing
-        private final TunnelScheme scheme;   // Protocol executor to the local relay
+        private final long             id;       // Tunnel identifier for de/multiplexing
+        private final ContextualLogger logger;  // Logger with connection and tunnel id injected
 
         // Chunking fields
         private int                   chunkLimit;    // Maximum length of a data payload
@@ -174,9 +191,9 @@ public class TunnelScheme {
         private final Object exitLock   = new Object(); // Tear-down synchronizer
         private       String exitStatus = null;         // Reason for termination, if not clean exit
 
-        public TunnelBridge(final TunnelScheme scheme, final long id, final int chunking) {
+        public TunnelBridge(final long id, final int chunking, final ContextualLogger logger) {
             this.id = id;
-            this.scheme = scheme;
+            this.logger = new ContextualLogger(logger, "tunnel", String.valueOf(id));
 
             chunkLimit = chunking;
         }
@@ -186,8 +203,15 @@ public class TunnelScheme {
             synchronized (exitLock) {
                 // Send the tear-down request if still alive and wait until a reply arrives
                 if (exitStatus == null) {
-                    protocol.sendTunnelClose(id);
-                    exitLock.wait();
+                    try {
+                        logger.loadContext();
+                        logger.info("Closing tunnel");
+
+                        protocol.sendTunnelClose(id);
+                        exitLock.wait();
+                    } finally {
+                        logger.unloadContext();
+                    }
                 }
             }
         }
@@ -263,6 +287,12 @@ public class TunnelScheme {
             // If a new message is arriving, dump anything stored before
             if (size != 0) {
                 if (chunkBuffer != null) {
+                    logger.loadContext();
+                    logger.warn("Incomplete message discarded",
+                                "size", String.valueOf(chunkCapacity),
+                                "arrived", String.valueOf(chunkBuffer.size()));
+                    logger.unloadContext();
+
                     // A large transfer timed out, new started, grant the partials allowance
                     final int allowance = chunkBuffer.size();
                     throttler.execute(() -> {
@@ -295,8 +325,19 @@ public class TunnelScheme {
         // Handles the graceful remote closure of the tunnel.
         public void handleClose(final String reason) {
             synchronized (exitLock) {
-                exitStatus = reason;
-                exitLock.notifyAll();
+                try {
+                    logger.loadContext();
+                    if (reason.length() != 0) {
+                        logger.warn("Tunnel dropped", "reason", reason);
+                    } else {
+                        logger.info("Tunnel closed gracefully");
+                    }
+
+                    exitStatus = reason;
+                    exitLock.notifyAll();
+                } finally {
+                    logger.unloadContext();
+                }
             }
         }
     }

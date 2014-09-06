@@ -209,7 +209,7 @@ public class TunnelTest extends AbstractBenchmark {
                 final byte[] blob = new byte[64 * 1024 * 1024];
                 for (int i = 0; i < 10; i++) {
                     try {
-                        tunnel.send(blob, 1);
+                        tunnel.send(blob, 10);
                         Assert.fail("Tunnel send didn't time out");
                     } catch (TimeoutException ignore) {
                         // All ok

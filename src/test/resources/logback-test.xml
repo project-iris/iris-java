@@ -1,0 +1,22 @@
+<!--
+~ Copyright (c) 2014 Project Iris. All rights reserved.
+~
+~ The current language binding is an official support library of the Iris
+~ cloud messaging framework, and as such, the same licensing terms apply.
+~ For details please see http://iris.karalabek.com/downloads#License
+-->
+
+<!--
+~ Contains the logback logger configuration for running the unit tests.
+-->
+<configuration>
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{HH:mm:ss.SSS} %-5level %-40msg %mdc%n</pattern>
+        </encoder>
+    </appender>
+
+    <root level="INFO">
+        <appender-ref ref="STDOUT"/>
+    </root>
+</configuration>

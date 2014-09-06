@@ -21,7 +21,8 @@ public class BoundedThreadPool {
         capacity = new Semaphore(bounds);
     }
 
-    // Schedules a new task into the thread pool if the required memory capacity is available.
+    // Schedules a new task into the thread pool if the required memory capacity is available or
+    // returns the approximately available space (note, race since not synced).
     public boolean schedule(Runnable task, int size) {
         if (!capacity.tryAcquire(size)) {
             return false;
@@ -31,17 +32,6 @@ public class BoundedThreadPool {
             task.run();
         });
         return true;
-    }
-
-    // Schedules a new task into the thread pool if the required memory capacity is available. The
-    // additional timeout is used to ensure that expired tasks get dropped instead of executed.
-    public boolean schedule(Runnable task, int size, int timeout) {
-        final long start = System.nanoTime();
-        return schedule(() -> {
-            if (((System.nanoTime() - start) / 1_000_000) < timeout) {
-                task.run();
-            }
-        }, size);
     }
 
     // Terminates the thread pool, either cleaning all pending tasks or waiting for them to complete.

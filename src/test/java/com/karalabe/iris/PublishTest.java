@@ -87,6 +87,11 @@ public class PublishTest extends AbstractBenchmark {
                         verifyEvents(CLIENT_COUNT, SERVER_COUNT, EVENT_COUNT, handler);
                     }
                     barrier.await(Config.PHASE_TIMEOUT, TimeUnit.SECONDS);
+
+                    // Clean up the topic subscriptions
+                    for (String topic : topics) {
+                        conn.unsubscribe(topic);
+                    }
                 } catch (Exception e) {
                     errors.add(e);
                 }
@@ -132,6 +137,11 @@ public class PublishTest extends AbstractBenchmark {
                         verifyEvents(CLIENT_COUNT, SERVER_COUNT, EVENT_COUNT, hand);
                     }
                     barrier.await(Config.PHASE_TIMEOUT, TimeUnit.SECONDS);
+
+                    // Clean up the topic subscriptions
+                    for (String topic : topics) {
+                        handler.connection.unsubscribe(topic);
+                    }
                 } catch (Exception e) {
                     errors.add(e);
                 }
@@ -141,6 +151,9 @@ public class PublishTest extends AbstractBenchmark {
         }
         // Schedule the parallel operations
         try {
+            barrier.await(Config.PHASE_TIMEOUT, TimeUnit.SECONDS);
+            Assert.assertTrue(errors.isEmpty());
+
             barrier.await(Config.PHASE_TIMEOUT, TimeUnit.SECONDS);
             Assert.assertTrue(errors.isEmpty());
 
@@ -214,6 +227,9 @@ public class PublishTest extends AbstractBenchmark {
             // Wait for half time and verify that only half was processed
             Thread.sleep((EVENT_COUNT / 2) * SLEEP + SLEEP / 2);
             Assert.assertEquals(EVENT_COUNT / 2, handler.arrived.size());
+
+            // Clean up the topic subscription
+            conn.unsubscribe(Config.TOPIC_NAME);
         }
     }
 
@@ -243,6 +259,9 @@ public class PublishTest extends AbstractBenchmark {
             // Check that space freed gets replenished
             conn.publish(Config.TOPIC_NAME, new byte[]{0x00});
             Assert.assertTrue(handler.pending.tryAcquire(100, TimeUnit.MILLISECONDS));
+
+            // Clean up the topic subscription
+            conn.unsubscribe(Config.TOPIC_NAME);
         }
     }
 }

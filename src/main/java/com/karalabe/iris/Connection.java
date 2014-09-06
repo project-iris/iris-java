@@ -5,6 +5,7 @@
 // For details please see http://iris.karalabe.com/downloads#License
 package com.karalabe.iris;
 
+import com.karalabe.iris.common.ContextualLogger;
 import com.karalabe.iris.exceptions.RemoteException;
 import com.karalabe.iris.exceptions.TimeoutException;
 import com.karalabe.iris.protocol.RelayProtocol;
@@ -48,8 +49,9 @@ public class Connection implements AutoCloseable {
         }
     }
 
-    private final RelayProtocol protocol;
-    private final Thread        runner;
+    private final RelayProtocol    protocol; // Iris relay protocol wire format implementation
+    private final Thread           runner;   // Thread reading and handling the inbound messages
+    private final ContextualLogger logger;   // Logger with connection id injected
 
     // Communication pattern implementers
     private final BroadcastScheme broadcaster;
@@ -58,19 +60,18 @@ public class Connection implements AutoCloseable {
     private final TunnelScheme    tunneler;
 
     // Connects to the Iris network as a simple client.
-    Connection(int port, @NotNull String cluster, @Nullable ServiceHandler handler, @Nullable ServiceLimits limits) throws IOException {
+    Connection(final int port, final String cluster, final ServiceHandler handler, final ServiceLimits limits, final ContextualLogger logger) throws IOException {
         Validators.validateClusterName(cluster);
 
-        // Load the default service limits if none specified
-        if (limits == null) { limits = new ServiceLimits(); }
+        this.logger = logger;
 
         protocol = new RelayProtocol(port, cluster);
 
         // Create the individual message pattern implementations
-        broadcaster = new BroadcastScheme(protocol, handler, limits);
-        requester = new RequestScheme(protocol, handler, limits);
-        subscriber = new PublishScheme(protocol);
-        tunneler = new TunnelScheme(protocol, handler);
+        broadcaster = new BroadcastScheme(protocol, handler, limits, logger);
+        requester = new RequestScheme(protocol, handler, limits, logger);
+        subscriber = new PublishScheme(protocol, logger);
+        tunneler = new TunnelScheme(protocol, handler, logger);
 
         // Start processing inbound network packets
         runner = new Thread(() -> protocol.process(handler, broadcaster, requester, subscriber, tunneler));
@@ -150,14 +151,22 @@ public class Connection implements AutoCloseable {
     //
     // The call blocks until the connection tear-down is confirmed by the Iris node.
     @Override public void close() throws IOException, InterruptedException {
-        // Terminate the relay connection
-        protocol.sendClose();
-        runner.join();
+        logger.loadContext();
+        try {
+            logger.info("Detaching from relay");
 
-        // Tear down the individual scheme implementations
-        tunneler.close();
-        subscriber.close();
-        requester.close();
-        broadcaster.close();
+            // Terminate the relay connection
+            protocol.sendClose();
+            runner.join();
+
+            // Tear down the individual scheme implementations
+            tunneler.close();
+            subscriber.close();
+            requester.close();
+            broadcaster.close();
+        } finally {
+            // Make sure the logger context doesn't leak out
+            logger.unloadContext();
+        }
     }
 }

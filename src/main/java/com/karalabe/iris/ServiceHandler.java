@@ -5,6 +5,7 @@
 // For details please see http://iris.karalabe.com/downloads#License
 package com.karalabe.iris;
 
+import com.karalabe.iris.exceptions.InitializationException;
 import com.karalabe.iris.exceptions.RemoteException;
 import org.jetbrains.annotations.NotNull;
 
@@ -16,7 +17,7 @@ public interface ServiceHandler {
     // Called once after the service is registered in the Iris network, but before
     // and handlers are activated. Its goal is to initialize any internal state
     // dependent on the connection.
-    default void init(@NotNull final Connection connection) {}
+    default void init(@NotNull final Connection connection) throws InitializationException {}
 
     // Callback invoked whenever a broadcast message arrives designated to the
     // cluster of which this particular service instance is part of.
