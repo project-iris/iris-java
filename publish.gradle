@@ -3,10 +3,10 @@
 // The current language binding is an official support library of the Iris
 // cloud messaging framework, and as such, the same licensing terms apply.
 // For details please see http://iris.karalabe.com/downloads#License
+apply from: 'build.gradle'
+
 apply plugin: 'maven'
 apply plugin: 'signing'
-
-apply from: 'build.gradle'
 
 // Make sure dependent properties are configured
 def validProperty = { String propertyName ->
@@ -16,11 +16,11 @@ def validProperty = { String propertyName ->
 
 assert validProperty('signing.keyId'),             'property for signing must be provided'
 assert validProperty('signing.secretKeyRingFile'), 'property for signing must be provided'
-assert validProperty('ossrhUsername'),              'property for publish must be provided'
+assert validProperty('ossrhUsername'),             'property for publish must be provided'
 
 // Ask for the PGP key password and the OSSRK user password
 ext."signing.password" = new String(System.console().readPassword("\nPassword for PGP key ${property('signing.keyId')}: "))
-ext.ossrhPassword        = new String(System.console().readPassword("\nPassword for OSSRH user ${ossrhUsername}@oss.sonatype.org: "))
+ext.ossrhPassword       = new String(System.console().readPassword("\nPassword for OSSRH user ${ossrhUsername}@oss.sonatype.org: "))
 
 // Sign all defined JAR archives in this configuration
 signing {
