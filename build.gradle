@@ -11,6 +11,9 @@ repositories {
 
 dependencies {
     compile 'org.jetbrains:annotations:13.0'
+    compile 'org.slf4j:slf4j-api:1.7.7'
+
     testCompile 'junit:junit:4.11'
     testCompile 'com.carrotsearch:junit-benchmarks:0.7.0'
+    testCompile 'ch.qos.logback:logback-classic:0.9.26'
 }
