@@ -22,7 +22,7 @@ public class ContextualLogger {
 
         this.context = new HashMap<>();
         for (int i = 0; i < context.length; i += 2) {
-            this.context.put(context[i], context[i+1]);
+            this.context.put(context[i], context[i + 1]);
         }
     }
 
@@ -35,7 +35,7 @@ public class ContextualLogger {
             this.context.put(entry.getKey(), entry.getValue());
         }
         for (int i = 0; i < context.length; i += 2) {
-            this.context.put(context[i], context[i+1]);
+            this.context.put(context[i], context[i + 1]);
         }
     }
 

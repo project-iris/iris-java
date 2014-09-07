@@ -10,7 +10,6 @@
 // http://iris.karalabe.com/specs/relay-protocol-v1.0-draft2.pdf
 package com.karalabe.iris.protocol;
 
-import com.karalabe.iris.ServiceHandler;
 import com.karalabe.iris.exceptions.RemoteException;
 import com.karalabe.iris.schemes.BroadcastScheme;
 import com.karalabe.iris.schemes.PublishScheme;
@@ -27,6 +26,7 @@ import java.net.Socket;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
 
 // Wire protocol for communicating with the Iris relay endpoint.
 public class RelayProtocol {
@@ -400,8 +400,10 @@ public class RelayProtocol {
 
     // Retrieves messages from the client connection and keeps processing them until
     // either the relay closes (graceful close) or the connection drops.
-    public void process(final ServiceHandler handler, final BroadcastScheme broadcaster, final RequestScheme requester,
-                        final PublishScheme publisher, final TunnelScheme tunneler) {
+    public void process(final BroadcastScheme broadcaster, final RequestScheme requester,
+                        final PublishScheme publisher, final TunnelScheme tunneler,
+                        final Consumer<Exception> dropper) {
+        Exception error = null;
         try {
             boolean closed = false;
             while (!closed) {
@@ -442,30 +444,31 @@ public class RelayProtocol {
                         // Retrieve any reason for remote closure
                         final String reason = processClose();
                         if (reason.length() > 0) {
-                            throw new RemoteException("Connection dropped: " + reason);
+                            error = new RemoteException("Connection dropped: " + reason);
                         }
                         closed = true;
                         break;
 
                     default:
-                        throw new ProtocolException("Unknown opcode: " + opCode);
+                        error = new ProtocolException("Unknown opcode: " + opCode);
                 }
             }
         } catch (Exception e) {
-            if (handler != null) {
-                handler.handleDrop(e);
-            }
-        } finally {
-            // Close the socket and signal termination to all blocked threads
-            try {
-                socketOut.close();
-            } catch (Exception e) {}
-            try {
-                socketIn.close();
-            } catch (Exception e) {}
-            try {
-                socket.close();
-            } catch (Exception e) {}
+            error = e;
         }
+        
+        // Close the socket and signal termination to all blocked threads
+        try {
+            socketOut.close();
+        } catch (IOException ignore) {}
+        try {
+            socketIn.close();
+        } catch (IOException ignore) {}
+        try {
+            socket.close();
+        } catch (IOException ignore) {}
+
+        // Notify the application of the connection closure
+        dropper.accept(error);
     }
 }

@@ -51,6 +51,7 @@ public class Connection implements AutoCloseable {
 
     private final RelayProtocol    protocol; // Iris relay protocol wire format implementation
     private final Thread           runner;   // Thread reading and handling the inbound messages
+    private final ServiceHandler   handler;  // Callback handler for inbound service events
     private final ContextualLogger logger;   // Logger with connection id injected
 
     // Communication pattern implementers
@@ -63,6 +64,7 @@ public class Connection implements AutoCloseable {
     Connection(final int port, final String cluster, final ServiceHandler handler, final ServiceLimits limits, final ContextualLogger logger) throws IOException {
         Validators.validateClusterName(cluster);
 
+        this.handler = handler;
         this.logger = logger;
 
         protocol = new RelayProtocol(port, cluster);
@@ -74,7 +76,7 @@ public class Connection implements AutoCloseable {
         tunneler = new TunnelScheme(protocol, handler, logger);
 
         // Start processing inbound network packets
-        runner = new Thread(() -> protocol.process(handler, broadcaster, requester, subscriber, tunneler));
+        runner = new Thread(() -> protocol.process(broadcaster, requester, subscriber, tunneler, (Exception e) -> handleClose(e)));
         runner.start();
     }
 
@@ -185,21 +187,37 @@ public class Connection implements AutoCloseable {
      */
     @Override public void close() throws IOException, InterruptedException {
         logger.loadContext();
+        logger.info("Detaching from relay");
+        logger.unloadContext();
+
+        // Terminate the relay connection
+        protocol.sendClose();
+        runner.join();
+    }
+
+    // Notifies the application of the relay link going down.
+    private void handleClose(Exception reason) {
+        logger.loadContext();
+        if (reason != null) {
+            logger.error("Connection dropped", "reason", reason.getMessage());
+        } else {
+            logger.info("Successfully detached");
+        }
+        logger.unloadContext();
+
+        // Notify the client of the drop if premature
+        if (reason != null) {
+            // Only server connections have registered handlers
+            if (handler != null) {
+                handler.handleDrop(reason);
+            }
+        }
+        // Tear down the individual scheme implementations
         try {
-            logger.info("Detaching from relay");
-
-            // Terminate the relay connection
-            protocol.sendClose();
-            runner.join();
-
-            // Tear down the individual scheme implementations
             tunneler.close();
             subscriber.close();
             requester.close();
             broadcaster.close();
-        } finally {
-            // Make sure the logger context doesn't leak out
-            logger.unloadContext();
-        }
+        } catch (InterruptedException ignored) {}
     }
 }

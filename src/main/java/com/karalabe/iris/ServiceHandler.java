@@ -64,9 +64,9 @@ public interface ServiceHandler {
 
     /**
      * Callback notifying the service that the local relay dropped its connection.
-     * @param e reason for the connection being dropped
+     * @param reason reason for the connection being dropped
      */
-    default void handleDrop(@NotNull final Exception e) {
-        throw new RuntimeException(e);
+    default void handleDrop(@NotNull final Exception reason) {
+        throw new RuntimeException(reason);
     }
 }
