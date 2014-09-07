@@ -73,10 +73,10 @@ public class Connection implements AutoCloseable {
         broadcaster = new BroadcastScheme(protocol, handler, limits, logger);
         requester = new RequestScheme(protocol, handler, limits, logger);
         subscriber = new PublishScheme(protocol, logger);
-        tunneler = new TunnelScheme(protocol, handler, logger);
+        tunneler = new TunnelScheme(protocol, handler, logger, Tunnel::new);
 
         // Start processing inbound network packets
-        runner = new Thread(() -> protocol.process(broadcaster, requester, subscriber, tunneler, (Exception e) -> handleClose(e)));
+        runner = new Thread(() -> protocol.process(broadcaster, requester, subscriber, tunneler, this::handleClose));
         runner.start();
     }
 
@@ -176,7 +176,7 @@ public class Connection implements AutoCloseable {
      */
     public Tunnel tunnel(@NotNull final String cluster, final long timeout) throws IOException, TimeoutException, InterruptedException {
         Validators.validateClusterAddress(cluster);
-        return new Tunnel(tunneler.tunnel(cluster, timeout));
+        return tunneler.tunnel(cluster, timeout);
     }
 
     /**

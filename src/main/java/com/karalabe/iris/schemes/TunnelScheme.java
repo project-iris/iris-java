@@ -21,6 +21,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Function;
 
 // Implements the tunnel communication pattern.
 public class TunnelScheme {
@@ -31,9 +32,10 @@ public class TunnelScheme {
 
     private static final int DEFAULT_TUNNEL_BUFFER = 64 * 1024 * 1024; // Size of a tunnel's input buffer.
 
-    private final RelayProtocol    protocol; // Network connection implementing the relay protocol
-    private final ServiceHandler   handler;  // Callback handler for processing inbound tunnels
-    private final ContextualLogger logger;   // Logger with connection id injected
+    private final RelayProtocol                  protocol; // Network connection implementing the relay protocol
+    private final Function<TunnelBridge, Tunnel> builder;  // Factory method to wrap a tunnel bridge into a tunnel
+    private final ServiceHandler                 handler;  // Callback handler for processing inbound tunnels
+    private final ContextualLogger               logger;   // Logger with connection id injected
 
     private final AtomicInteger           nextId  = new AtomicInteger();          // Unique identifier for the next tunnel
     private final Map<Long, PendingBuild> pending = new ConcurrentHashMap<>(128); // Result objects for pending tunnel
@@ -42,15 +44,17 @@ public class TunnelScheme {
     private final ExecutorService throttler = Executors.newSingleThreadExecutor(); // Executor for sending back async tunnel allowances
 
     // Constructs a tunnel scheme implementation.
-    public TunnelScheme(final RelayProtocol protocol, final ServiceHandler handler, final ContextualLogger logger) {
+    public TunnelScheme(final RelayProtocol protocol, final ServiceHandler handler, final ContextualLogger logger,
+                        final Function<TunnelBridge, Tunnel> builder) {
         this.protocol = protocol;
+        this.builder = builder;
         this.handler = handler;
         this.logger = logger;
     }
 
     // Relays a tunnel construction request to the local Iris node, waits for a
     // reply or timeout and potentially returns a new tunnel.
-    public TunnelBridge tunnel(final String cluster, final long timeout) throws IOException, InterruptedException, TimeoutException {
+    public Tunnel tunnel(final String cluster, final long timeout) throws IOException, InterruptedException, TimeoutException {
         // Fetch a unique ID for the tunnel
         final long id = nextId.incrementAndGet();
 
@@ -82,7 +86,7 @@ public class TunnelScheme {
             protocol.sendTunnelAllowance(id, DEFAULT_TUNNEL_BUFFER);
             bridge.logger.info("Tunnel construction completed", "chunk_limit", String.valueOf(bridge.chunkLimit));
 
-            return bridge;
+            return builder.apply(bridge);
         } catch (IOException | InterruptedException | TimeoutException e) {
             bridge.logger.warn("Tunnel construction failed", "reason", e.getMessage());
 
@@ -114,7 +118,7 @@ public class TunnelScheme {
                 protocol.sendTunnelAllowance(id, DEFAULT_TUNNEL_BUFFER);
 
                 bridge.logger.info("Tunnel acceptance completed");
-                handler.handleTunnel(new Tunnel(bridge));
+                handler.handleTunnel(builder.apply(bridge));
             } catch (IOException e) {
                 bridge.logger.warn("Tunnel acceptance failed", "reason", e.getMessage());
                 active.remove(id);

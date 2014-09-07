@@ -19,10 +19,7 @@ import java.io.IOException;
 public class Tunnel implements AutoCloseable {
     private final TunnelBridge bridge;
 
-    /**
-     * Internal constructor, not meant for public use. Will be removed at a certain point!
-     */
-    public Tunnel(@NotNull final TunnelBridge bridge) {
+    Tunnel(@NotNull final TunnelBridge bridge) {
         this.bridge = bridge;
     }
 
