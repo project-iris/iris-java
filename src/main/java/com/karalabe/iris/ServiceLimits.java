@@ -5,17 +5,19 @@
 // For details please see http://iris.karalabe.com/downloads#License
 package com.karalabe.iris;
 
-// User limits of the threading and memory usage of a registered service.
+/**
+ * User limits of the threading and memory usage of a registered service.
+ */
 public class ServiceLimits {
-    // Broadcast handlers to execute concurrently
+    /** Broadcast handlers to execute concurrently */
     public int broadcastThreads = 4 * Runtime.getRuntime().availableProcessors();
 
-    // Memory allowance for pending broadcasts
+    /** Memory allowance for pending broadcasts */
     public int broadcastMemory = 64 * 1024 * 1024;
 
-    // Request handlers to execute concurrently
+    /** Request handlers to execute concurrently */
     public int requestThreads = 4 * Runtime.getRuntime().availableProcessors();
 
-    // Memory allowance for pending requests
+    /** Memory allowance for pending requests */
     public int requestMemory = 64 * 1024 * 1024;
 }

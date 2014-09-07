@@ -13,7 +13,9 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicInteger;
 
-// Service instance belonging to a particular cluster in the network.
+/**
+ * Service instance belonging to a particular cluster in the network.\
+ */
 public class Service implements AutoCloseable {
     private static final AtomicInteger nextServId = new AtomicInteger(); // Id to assign to the next service
 
@@ -51,10 +53,12 @@ public class Service implements AutoCloseable {
         }
     }
 
-    // Unregisters the service instance from the Iris network, removing all
-    // subscriptions and closing all active tunnels.
-    //
-    // The call blocks until the tear-down is confirmed by the Iris node.
+    /**
+     * Unregisters the service instance from the Iris network, removing all
+     * subscriptions and closing all active tunnels.
+     *
+     * The call blocks until the tear-down is confirmed by the Iris node.
+     */
     @Override public void close() throws IOException, InterruptedException {
         connection.close();
     }

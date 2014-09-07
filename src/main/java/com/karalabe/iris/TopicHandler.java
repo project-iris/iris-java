@@ -7,9 +7,14 @@ package com.karalabe.iris;
 
 import org.jetbrains.annotations.NotNull;
 
-// Callback interface for processing events from a single subscribed topic.
+/**
+ * Callback interface for processing events from a single subscribed topic.
+ */
 public interface TopicHandler {
-    // Callback invoked whenever an event is published to the topic subscribed to
-    // by this particular handler.
+    /**
+     * Callback invoked whenever an event is published to the topic subscribed to
+     * by this particular handler.
+     * @param event binary data contents of the published event
+     */
     default void handleEvent(@NotNull final byte[] event) {}
 }

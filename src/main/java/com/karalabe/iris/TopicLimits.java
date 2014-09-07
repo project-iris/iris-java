@@ -5,11 +5,13 @@
 // For details please see http://iris.karalabe.com/downloads#License
 package com.karalabe.iris;
 
-// User limits of the threading and memory usage of a subscription.
+/**
+ * User limits of the threading and memory usage of a subscription.
+ */
 public class TopicLimits {
-    // Event handlers to execute concurrently
+    /** Event handlers to execute concurrently */
     public int eventThreads = 4 * Runtime.getRuntime().availableProcessors();
 
-    // Memory allowance for pending events
+    /** Memory allowance for pending events */
     public int eventMemory = 64 * 1024 * 1024;
 }

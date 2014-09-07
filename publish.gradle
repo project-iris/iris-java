@@ -20,7 +20,7 @@ assert validProperty('ossrhUsername'),             'property for publish must be
 
 // Ask for the PGP key password and the OSSRK user password
 ext."signing.password" = new String(System.console().readPassword("\nPassword for PGP key ${property('signing.keyId')}: "))
-ext.ossrhPassword       = new String(System.console().readPassword("\nPassword for OSSRH user ${ossrhUsername}@oss.sonatype.org: "))
+ext.ossrhPassword      = new String(System.console().readPassword("\nPassword for OSSRH user ${ossrhUsername}@oss.sonatype.org: "))
 
 // Sign all defined JAR archives in this configuration
 signing {
