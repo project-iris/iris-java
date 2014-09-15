@@ -19,7 +19,6 @@ version = "1.0.0-preview-2"
 repositories {
     mavenCentral()
 }
-
 dependencies {
     compile 'org.jetbrains:annotations:13.0'
     compile 'org.slf4j:slf4j-api:1.7.7'
@@ -27,16 +26,4 @@ dependencies {
     testCompile 'junit:junit:4.11'
     testCompile 'com.carrotsearch:junit-benchmarks:0.7.0'
     testCompile 'ch.qos.logback:logback-classic:0.9.26'
-}
-
-// Creates a JAR achive of the documentation
-task javadocJar(type: Jar) {
-    classifier = 'javadoc'
-    from javadoc
-}
-
-// Creates a JAR archive of the library sources
-task sourcesJar(type: Jar) {
-    classifier = 'sources'
-    from sourceSets.main.allSource
 }

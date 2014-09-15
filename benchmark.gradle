@@ -1,0 +1,41 @@
+// Copyright (c) 2014 Project Iris. All rights reserved.
+//
+// The current language binding is an official support library of the Iris
+// cloud messaging framework, and as such, the same licensing terms apply.
+// For details please see http://iris.karalabe.com/downloads#License
+
+// Load the JMH micro-benchmark plugin
+plugins {
+    id "me.champeau.gradle.jmh" version "0.1.2"
+}
+apply from: 'build.gradle'
+
+// Hack since the JMH plugin cannot handle renamed jars
+archivesBaseName = rootProject.name
+version = ''
+
+// Configure the micro-benchmarks
+jmh {
+    fork         = 1        // Run benchmarks in a single, new Java process
+    resultFormat = 'TEXT'   // Report the results in plan human readable form
+
+    warmupIterations = 10   // Number of warm-up iterations to execute
+    warmup           = "1ms" // Runtime of one warm-up session
+
+    iterations       = 10   // Number of benchmark iterations to execute
+    timeOnIteration  = '1ms' // Runtime of one benchmark session
+}
+
+// Pull in the latest JMH dependencies
+dependencies {
+    jmh 'org.openjdk.jmh:jmh-core:1.1'
+    jmh 'org.openjdk.jmh:jmh-generator-annprocess:1.1'
+}
+
+// Create a small task to report the obtained results to stdout
+task report << {
+    print jmh.resultsFile.text
+}
+
+// Don't require remembering the tasks, just run the benchmarks
+defaultTasks 'jmh', 'report'
