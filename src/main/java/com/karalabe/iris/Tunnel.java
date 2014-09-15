@@ -6,6 +6,7 @@
 package com.karalabe.iris;
 
 import com.karalabe.iris.exceptions.TimeoutException;
+import com.karalabe.iris.protocol.Validators;
 import com.karalabe.iris.schemes.TunnelScheme.TunnelBridge;
 import org.jetbrains.annotations.NotNull;
 
@@ -29,6 +30,7 @@ public class Tunnel implements AutoCloseable {
      * @param message binary data contents of the message for forward to the remote endpoint
      */
     public void send(@NotNull final byte[] message) throws IOException, InterruptedException {
+        Validators.validateTunnelPayload(message);
         try {
             bridge.send(message, 0);
         } catch (TimeoutException e) {
@@ -43,6 +45,7 @@ public class Tunnel implements AutoCloseable {
      * @param timeout milliseconds to wait for the message to be transferred to the local relay
      */
     public void send(@NotNull final byte[] message, final long timeout) throws IOException, TimeoutException, InterruptedException {
+        Validators.validateTunnelPayload(message);
         bridge.send(message, timeout);
     }
 

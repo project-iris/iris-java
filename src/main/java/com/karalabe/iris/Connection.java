@@ -9,6 +9,7 @@ import com.karalabe.iris.common.ContextualLogger;
 import com.karalabe.iris.exceptions.RemoteException;
 import com.karalabe.iris.exceptions.TimeoutException;
 import com.karalabe.iris.protocol.RelayProtocol;
+import com.karalabe.iris.protocol.Validators;
 import com.karalabe.iris.schemes.BroadcastScheme;
 import com.karalabe.iris.schemes.PublishScheme;
 import com.karalabe.iris.schemes.RequestScheme;
@@ -17,38 +18,11 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
-import java.util.regex.Pattern;
 
 /**
  * Message relay between the local app and the local iris node.
  */
 public class Connection implements AutoCloseable {
-    static final class Validators {
-        private static final Pattern CLUSTER_NAME_PATTERN    = Pattern.compile("[^:]*");
-        private static final Pattern CLUSTER_ADDRESS_PATTERN = Pattern.compile("([^:]+:)?[^:]+");
-        private static final Pattern TOPIC_NAME_PATTERN      = Pattern.compile("[^:]*");
-
-        private Validators() {}
-
-        public static void validateClusterName(@NotNull final String cluster) {
-            if (!CLUSTER_NAME_PATTERN.matcher(cluster).matches()) {
-                throw new IllegalArgumentException("Cluster names may not contain the scoping operator ':'");
-            }
-        }
-
-        public static void validateClusterAddress(@NotNull final String cluster) {
-            if (!CLUSTER_ADDRESS_PATTERN.matcher(cluster).matches()) {
-                throw new IllegalArgumentException("Cluster addresses may contain a maximum of one scoping operator ':'");
-            }
-        }
-
-        public static void validateTopicName(@NotNull final String topic) {
-            if (!TOPIC_NAME_PATTERN.matcher(topic).matches()) {
-                throw new IllegalArgumentException("Topic names may not contain the scoping operator ':'");
-            }
-        }
-    }
-
     private final RelayProtocol    protocol; // Iris relay protocol wire format implementation
     private final Thread           runner;   // Thread reading and handling the inbound messages
     private final ServiceHandler   handler;  // Callback handler for inbound service events
@@ -90,6 +64,8 @@ public class Connection implements AutoCloseable {
      */
     public void broadcast(@NotNull final String cluster, @NotNull final byte[] message) throws IOException {
         Validators.validateClusterAddress(cluster);
+        Validators.validateBroadcastPayload(message);
+
         broadcaster.broadcast(cluster, message);
     }
 
@@ -105,6 +81,8 @@ public class Connection implements AutoCloseable {
      */
     public byte[] request(@NotNull final String cluster, @NotNull final byte[] request, final long timeout) throws IOException, InterruptedException, RemoteException, TimeoutException {
         Validators.validateClusterAddress(cluster);
+        Validators.validateRequestPayload(request);
+
         return requester.request(cluster, request, timeout);
     }
 
@@ -148,6 +126,8 @@ public class Connection implements AutoCloseable {
      */
     public void publish(@NotNull final String topic, @NotNull final byte[] event) throws IOException {
         Validators.validateTopicName(topic);
+        Validators.validatePublishPayload(event);
+
         subscriber.publish(topic, event);
     }
 

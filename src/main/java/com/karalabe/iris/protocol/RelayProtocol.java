@@ -456,7 +456,7 @@ public class RelayProtocol {
         } catch (Exception e) {
             error = e;
         }
-        
+
         // Close the socket and signal termination to all blocked threads
         try {
             socketOut.close();
