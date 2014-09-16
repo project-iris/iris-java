@@ -16,10 +16,7 @@ import com.karalabe.iris.schemes.PublishScheme;
 import com.karalabe.iris.schemes.RequestScheme;
 import com.karalabe.iris.schemes.TunnelScheme;
 
-import java.io.BufferedOutputStream;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
-import java.io.IOException;
+import java.io.*;
 import java.net.InetAddress;
 import java.net.ProtocolException;
 import java.net.Socket;
@@ -65,7 +62,7 @@ public class RelayProtocol {
     public RelayProtocol(final int port, final String cluster) throws IOException {
         // Connect to the iris relay node
         socket = new Socket(InetAddress.getLoopbackAddress(), port);
-        socketIn = new DataInputStream(socket.getInputStream());
+        socketIn = new DataInputStream(new BufferedInputStream(socket.getInputStream()));
         socketOut = new DataOutputStream(new BufferedOutputStream(socket.getOutputStream()));
         socketWait = new AtomicInteger();
 
