@@ -32,7 +32,6 @@ jmh {
 dependencies {
     jmh 'org.openjdk.jmh:jmh-core:1.1'
     jmh 'org.openjdk.jmh:jmh-generator-annprocess:1.1'
-    jmh 'ch.qos.logback:logback-classic:0.9.26'
 }
 
 // Create a small task to report the obtained results to stdout
