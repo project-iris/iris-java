@@ -6,35 +6,33 @@
 package com.karalabe.iris;
 
 import com.karalabe.iris.exceptions.InitializationException;
+import com.karalabe.iris.exceptions.RemoteException;
+import com.karalabe.iris.exceptions.TimeoutException;
 import org.openjdk.jmh.annotations.*;
 
 import java.io.IOException;
-import java.util.concurrent.Semaphore;
 
-// Benchmarks broadcasting a single message.
+// Benchmarks the latency of a single request/reply operation.
 @State(Scope.Thread)
-public class BroadcastLatencyBenchmark {
-    private class BenchmarkHandler implements ServiceHandler {
+public class RequestLatencyBenchmark {
+    private class RequestHandler implements ServiceHandler {
         Connection connection;
-        Semaphore  pending;
 
         @Override public void init(final Connection connection) {
             this.connection = connection;
         }
 
-        @Override public void handleBroadcast(final byte[] message) {
-            pending.release();
+        @Override public byte[] handleRequest(final byte[] request) {
+            return request;
         }
     }
 
-    private BenchmarkHandler handler = null;
-    private Service          service = null;
+    private RequestHandler handler = null;
+    private Service        service = null;
 
     // Registers a new service to the relay.
     @Setup(Level.Iteration) public void init() throws InterruptedException, IOException, InitializationException {
-        handler = new BenchmarkHandler();
-        handler.pending = new Semaphore(0);
-
+        handler = new RequestHandler();
         service = Iris.register(BenchmarkConfigs.RELAY_PORT, BenchmarkConfigs.CLUSTER_NAME, handler);
     }
 
@@ -43,9 +41,8 @@ public class BroadcastLatencyBenchmark {
         service.close();
     }
 
-    // Benchmarks broadcasting a single message.
-    @Benchmark public void timeLatency() throws InterruptedException, IOException {
-        handler.connection.broadcast(BenchmarkConfigs.CLUSTER_NAME, new byte[]{0x00});
-        handler.pending.acquire();
+    // Benchmarks the latency of a single request/reply operation.
+    @Benchmark public void timeLatency() throws InterruptedException, IOException, TimeoutException, RemoteException {
+        handler.connection.request(BenchmarkConfigs.CLUSTER_NAME, new byte[]{0x00}, 1000);
     }
 }

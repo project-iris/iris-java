@@ -13,40 +13,37 @@ import java.util.ArrayList;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Semaphore;
 
-// Benchmarks broadcasting a batch of messages.
+// Benchmarks the throughput of a stream of concurrent requests.
 @State(Scope.Thread)
-public class BroadcastThroughputBenchmark {
-    private class BenchmarkHandler implements ServiceHandler {
+public class RequestThroughputBenchmark {
+    private class RequestHandler implements ServiceHandler {
         Connection connection;
-        Semaphore  pending;
 
         @Override public void init(final Connection connection) {
             this.connection = connection;
         }
 
-        @Override public void handleBroadcast(final byte[] message) {
-            pending.release();
+        @Override public byte[] handleRequest(final byte[] request) {
+            return request;
         }
     }
 
     @Param({"1", "2", "4", "8", "16", "32", "64", "128"})
     public int threads;
 
-    private final int ITERATIONS = 50000;
+    private final int ITERATIONS = 10000;
 
-    private BenchmarkHandler handler = null;
-    private Service          service = null;
+    private RequestHandler handler = null;
+    private Service        service = null;
 
     private ExecutorService              workers = null;
     private ArrayList<Callable<Integer>> tasks   = null;
 
     // Initializes the benchmark.
     @Setup(Level.Iteration) public void init() throws InterruptedException, IOException, InitializationException {
-        // Registers a new service to the relay.
-        handler = new BenchmarkHandler();
-        handler.pending = new Semaphore(0);
+        // Register a new service to the relay.
+        handler = new RequestHandler();
         service = Iris.register(BenchmarkConfigs.RELAY_PORT, BenchmarkConfigs.CLUSTER_NAME, handler);
 
         // Assemble the tasks-set to benchmark
@@ -54,7 +51,7 @@ public class BroadcastThroughputBenchmark {
         tasks = new ArrayList<>(ITERATIONS);
         for (int i = 0; i < ITERATIONS; i++) {
             tasks.add(i, () -> {
-                handler.connection.broadcast(BenchmarkConfigs.CLUSTER_NAME, new byte[]{0x00});
+                handler.connection.request(BenchmarkConfigs.CLUSTER_NAME, new byte[]{0x00}, 1000);
                 return 0;
             });
         }
@@ -66,9 +63,8 @@ public class BroadcastThroughputBenchmark {
         service.close();
     }
 
-    // Benchmarks broadcasting a batch of messages.
+    // Benchmarks the throughput of a stream of concurrent requests.
     @Benchmark @OperationsPerInvocation(ITERATIONS) public void timeThroughput() throws InterruptedException, IOException {
         workers.invokeAll(tasks);
-        handler.pending.acquire(ITERATIONS);
     }
 }

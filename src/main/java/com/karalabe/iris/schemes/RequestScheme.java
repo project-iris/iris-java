@@ -52,7 +52,7 @@ public class RequestScheme {
     // Relays a request to the local Iris node, waits for a reply or timeout and returns it.
     public byte[] request(final String cluster, final byte[] request, final long timeout) throws IOException, InterruptedException, RemoteException, TimeoutException {
         // Fetch a unique ID for the request
-        final long id = nextId.addAndGet(1);
+        final long id = nextId.incrementAndGet();
 
         // Create a temporary object to store the reply
         final PendingRequest operation = new PendingRequest();
