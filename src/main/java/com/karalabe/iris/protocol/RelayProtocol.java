@@ -62,6 +62,8 @@ public class RelayProtocol {
     public RelayProtocol(final int port, final String cluster) throws IOException {
         // Connect to the iris relay node
         socket = new Socket(InetAddress.getLoopbackAddress(), port);
+        socket.setTcpNoDelay(true);
+
         socketIn = new DataInputStream(new BufferedInputStream(socket.getInputStream()));
         socketOut = new DataOutputStream(new BufferedOutputStream(socket.getOutputStream()));
         socketWait = new AtomicInteger();
@@ -112,7 +114,7 @@ public class RelayProtocol {
     // Serializes a packet through a closure into the relay connection.
     private void sendPacket(byte opCode, Closure closure) throws IOException {
         // Increment the pending write count
-        socketWait.addAndGet(1);
+        socketWait.incrementAndGet();
 
         // Acquire the socket lock and send the packet itself
         synchronized (socketOut) {
@@ -120,7 +122,7 @@ public class RelayProtocol {
             closure.run();
         }
         // Flush the stream if no more messages are pending
-        if (socketWait.addAndGet(-1) == 0) {
+        if (socketWait.decrementAndGet() == 0) {
             socketOut.flush();
         }
     }

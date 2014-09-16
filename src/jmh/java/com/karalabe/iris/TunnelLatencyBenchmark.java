@@ -13,7 +13,7 @@ import java.io.IOException;
 import java.util.concurrent.Semaphore;
 
 // Benchmarks the latency of the tunnel data transfer.
-@State(Scope.Benchmark)
+@State(Scope.Thread)
 public class TunnelLatencyBenchmark {
     private class BenchmarkHandler implements ServiceHandler {
         Connection connection;

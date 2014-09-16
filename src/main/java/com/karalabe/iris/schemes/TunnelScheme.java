@@ -268,7 +268,7 @@ public class TunnelScheme {
                 }
                 // Fetch the pending message and send a remote allowance
                 final byte[] message = itoaBuffer.remove();
-                throttler.execute(() -> {
+                throttler.submit(() -> {
                     try {
                         protocol.sendTunnelAllowance(id, message.length);
                     } catch (IOException ignored) {}
@@ -299,7 +299,7 @@ public class TunnelScheme {
 
                     // A large transfer timed out, new started, grant the partials allowance
                     final int allowance = chunkBuffer.size();
-                    throttler.execute(() -> {
+                    throttler.submit(() -> {
                         try {
                             protocol.sendTunnelAllowance(id, allowance);
                         } catch (IOException ignored) {}
