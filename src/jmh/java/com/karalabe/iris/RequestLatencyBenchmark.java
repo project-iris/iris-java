@@ -15,7 +15,7 @@ import java.io.IOException;
 // Benchmarks the latency of a single request/reply operation.
 @State(Scope.Thread)
 public class RequestLatencyBenchmark {
-    private class RequestHandler implements ServiceHandler {
+    private class BenchmarkHandler implements ServiceHandler {
         Connection connection;
 
         @Override public void init(final Connection connection) {
@@ -27,12 +27,12 @@ public class RequestLatencyBenchmark {
         }
     }
 
-    private RequestHandler handler = null;
-    private Service        service = null;
+    private BenchmarkHandler handler = null;
+    private Service          service = null;
 
     // Registers a new service to the relay.
     @Setup(Level.Iteration) public void init() throws InterruptedException, IOException, InitializationException {
-        handler = new RequestHandler();
+        handler = new BenchmarkHandler();
         service = Iris.register(BenchmarkConfigs.RELAY_PORT, BenchmarkConfigs.CLUSTER_NAME, handler);
     }
 

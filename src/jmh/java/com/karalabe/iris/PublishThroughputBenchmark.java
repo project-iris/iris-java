@@ -13,58 +13,62 @@ import java.util.ArrayList;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Semaphore;
 
-// Benchmarks the throughput of a stream of concurrent requests.
+// Benchmarks publishing a batch of messages.
 @State(Scope.Thread)
-public class RequestThroughputBenchmark {
-    private class BenchmarkHandler implements ServiceHandler {
-        Connection connection;
+public class PublishThroughputBenchmark {
+    static class BenchmarkHandler implements TopicHandler {
+        Semaphore pending;
 
-        @Override public void init(final Connection connection) {
-            this.connection = connection;
-        }
-
-        @Override public byte[] handleRequest(final byte[] request) {
-            return request;
+        @Override public void handleEvent(final byte[] event) {
+            pending.release();
         }
     }
 
     @Param({"1", "2", "4", "8", "16", "32", "64", "128"})
     public int threads;
 
-    private final int ITERATIONS = 10000;
+    private final int ITERATIONS = 50000;
 
-    private BenchmarkHandler handler = null;
-    private Service          service = null;
+    private Connection       connection = null;
+    private BenchmarkHandler handler    = null;
 
     private ExecutorService              workers = null;
     private ArrayList<Callable<Integer>> tasks   = null;
 
     // Initializes the benchmark.
     @Setup(Level.Iteration) public void init() throws InterruptedException, IOException, InitializationException {
-        // Register a new service to the relay.
+        // Connect to the relay and subscribe to a topic
         handler = new BenchmarkHandler();
-        service = Iris.register(BenchmarkConfigs.RELAY_PORT, BenchmarkConfigs.CLUSTER_NAME, handler);
+        handler.pending = new Semaphore(0);
+
+        connection = Iris.connect(BenchmarkConfigs.RELAY_PORT);
+        connection.subscribe(BenchmarkConfigs.TOPIC_NAME, handler);
+        Thread.sleep(100);
 
         // Assemble the tasks-set to benchmark
         workers = Executors.newFixedThreadPool(threads);
         tasks = new ArrayList<>(ITERATIONS);
         for (int i = 0; i < ITERATIONS; i++) {
             tasks.add(i, () -> {
-                handler.connection.request(BenchmarkConfigs.CLUSTER_NAME, new byte[]{0x00}, 1000);
+                connection.publish(BenchmarkConfigs.TOPIC_NAME, new byte[]{0x00});
                 return 0;
             });
         }
     }
 
-    // Terminates the workers and the service.
+    // Terminates the workers, unsubscribes and closes the connection.
     @TearDown(Level.Iteration) public void close() throws IOException, InterruptedException {
         workers.shutdown();
-        service.close();
+        connection.unsubscribe(BenchmarkConfigs.TOPIC_NAME);
+        connection.close();
+        Thread.sleep(100);
     }
 
-    // Benchmarks the throughput of a stream of concurrent requests.
+    // Benchmarks publishing a batch of messages.
     @Benchmark @OperationsPerInvocation(ITERATIONS) public void timeThroughput() throws InterruptedException, IOException {
         workers.invokeAll(tasks);
+        handler.pending.acquire(ITERATIONS);
     }
 }
