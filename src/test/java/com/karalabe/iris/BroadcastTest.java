@@ -48,7 +48,7 @@ public class BroadcastTest extends AbstractBenchmark {
         for (int i = 0; i < CLIENT_COUNT; i++) {
             final int client = i;
             final Thread worker = new Thread(() -> {
-                try (final Connection conn = Iris.connect(Config.RELAY_PORT)) {
+                try (final Connection conn = new Connection(Config.RELAY_PORT)) {
                     // Wait till all clients and servers connect
                     barrier.await(Config.PHASE_TIMEOUT, TimeUnit.SECONDS);
 
@@ -74,7 +74,7 @@ public class BroadcastTest extends AbstractBenchmark {
             final Thread worker = new Thread(() -> {
                 final BroadcastTestHandler handler = new BroadcastTestHandler();
 
-                try (final Service ignored = Iris.register(Config.RELAY_PORT, Config.CLUSTER_NAME, handler)) {
+                try (final Service ignored = new Service(Config.RELAY_PORT, Config.CLUSTER_NAME, handler)) {
                     // Wait till all clients and servers connect
                     handler.pending = new Semaphore((CLIENT_COUNT + SERVER_COUNT) * MESSAGE_COUNT);
                     handler.pending.acquire((CLIENT_COUNT + SERVER_COUNT) * MESSAGE_COUNT);
@@ -160,7 +160,7 @@ public class BroadcastTest extends AbstractBenchmark {
         final ServiceLimits limits = new ServiceLimits();
         limits.broadcastThreads = 1;
 
-        try (final Service ignored = Iris.register(Config.RELAY_PORT, Config.CLUSTER_NAME, handler, limits)) {
+        try (final Service ignored = new Service(Config.RELAY_PORT, Config.CLUSTER_NAME, handler, limits)) {
             // Send a few broadcasts
             for (int j = 0; j < MESSAGE_COUNT; j++) {
                 handler.connection.broadcast(Config.CLUSTER_NAME, new byte[]{(byte) j});
@@ -182,7 +182,7 @@ public class BroadcastTest extends AbstractBenchmark {
         final ServiceLimits limits = new ServiceLimits();
         limits.broadcastMemory = 1;
 
-        try (final Service ignored = Iris.register(Config.RELAY_PORT, Config.CLUSTER_NAME, handler, limits)) {
+        try (final Service ignored = new Service(Config.RELAY_PORT, Config.CLUSTER_NAME, handler, limits)) {
             // Check that a 1 byte broadcast passes
             handler.connection.broadcast(Config.CLUSTER_NAME, new byte[]{0x00});
             Assert.assertTrue(handler.pending.tryAcquire(100, TimeUnit.MILLISECONDS));

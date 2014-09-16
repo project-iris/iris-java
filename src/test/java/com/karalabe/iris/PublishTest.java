@@ -55,7 +55,7 @@ public class PublishTest extends AbstractBenchmark {
         for (int i = 0; i < CLIENT_COUNT; i++) {
             final int client = i;
             final Thread worker = new Thread(() -> {
-                try (final Connection conn = Iris.connect(Config.RELAY_PORT)) {
+                try (final Connection conn = new Connection(Config.RELAY_PORT)) {
                     // Wait till all clients and servers connect
                     barrier.await(Config.PHASE_TIMEOUT, TimeUnit.SECONDS);
 
@@ -105,7 +105,7 @@ public class PublishTest extends AbstractBenchmark {
             final Thread worker = new Thread(() -> {
                 PublishTestServiceHandler handler = new PublishTestServiceHandler();
 
-                try (final Service ignored = Iris.register(Config.RELAY_PORT, Config.CLUSTER_NAME, handler)) {
+                try (final Service ignored = new Service(Config.RELAY_PORT, Config.CLUSTER_NAME, handler)) {
                     // Wait till all clients and servers connect
                     barrier.await(Config.PHASE_TIMEOUT, TimeUnit.SECONDS);
 
@@ -209,7 +209,7 @@ public class PublishTest extends AbstractBenchmark {
         final int EVENT_COUNT = 4, SLEEP = 100;
 
         // Connect to the local relay
-        try (final Connection conn = Iris.connect(Config.RELAY_PORT)) {
+        try (final Connection conn = new Connection(Config.RELAY_PORT)) {
             // Subscribe to a topic and wait for state propagation
             final PublishTestTopicLimitHandler handler = new PublishTestTopicLimitHandler();
             handler.sleep = SLEEP;
@@ -236,7 +236,7 @@ public class PublishTest extends AbstractBenchmark {
     // Tests the subscription memory limitation.
     @BenchmarkOptions(benchmarkRounds = 5, warmupRounds = 10)
     @Test public void memoryLimiting() throws Exception {
-        try (final Connection conn = Iris.connect(Config.RELAY_PORT)) {
+        try (final Connection conn = new Connection(Config.RELAY_PORT)) {
             // Subscribe to a topic and wait for state propagation
             final PublishTestTopicHandler handler = new PublishTestTopicHandler();
             handler.pending = new Semaphore(2);

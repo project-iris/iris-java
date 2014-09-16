@@ -44,7 +44,7 @@ public class RequestThroughputBenchmark {
     @Setup(Level.Iteration) public void init() throws InterruptedException, IOException, InitializationException {
         // Register a new service to the relay.
         handler = new BenchmarkHandler();
-        service = Iris.register(BenchmarkConfigs.RELAY_PORT, BenchmarkConfigs.CLUSTER_NAME, handler);
+        service = new Service(BenchmarkConfigs.RELAY_PORT, BenchmarkConfigs.CLUSTER_NAME, handler);
 
         // Assemble the tasks-set to benchmark
         workers = Executors.newFixedThreadPool(threads);

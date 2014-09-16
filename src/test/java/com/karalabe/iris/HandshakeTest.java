@@ -12,14 +12,14 @@ import org.junit.Test;
 @SuppressWarnings({"resource", "JUnitTestNG", "ProhibitedExceptionDeclared", "UnqualifiedStaticUsage"})
 public class HandshakeTest extends AbstractBenchmark {
     @Test public void connection() throws Exception {
-        try (final Connection ignored = Iris.connect(Config.RELAY_PORT)) {
+        try (final Connection ignored = new Connection(Config.RELAY_PORT)) {
         } catch (Exception e) {
             Assert.fail(e.getMessage());
         }
     }
 
     @Test public void service() throws Exception {
-        try (final Service ignored = Iris.register(Config.RELAY_PORT, Config.CLUSTER_NAME, new ServiceHandler() { })) {
+        try (final Service ignored = new Service(Config.RELAY_PORT, Config.CLUSTER_NAME, new ServiceHandler() { })) {
         } catch (Exception e) {
             Assert.fail(e.getMessage());
         }

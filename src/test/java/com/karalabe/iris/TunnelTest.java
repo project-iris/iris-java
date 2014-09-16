@@ -61,7 +61,7 @@ public class TunnelTest extends AbstractBenchmark {
         for (int i = 0; i < CLIENT_COUNT; i++) {
             final int client = i;
             final Thread worker = new Thread(() -> {
-                try (final Connection conn = Iris.connect(Config.RELAY_PORT)) {
+                try (final Connection conn = new Connection(Config.RELAY_PORT)) {
                     // Wait till all clients and servers connect
                     barrier.await(Config.PHASE_TIMEOUT, TimeUnit.SECONDS);
 
@@ -83,7 +83,7 @@ public class TunnelTest extends AbstractBenchmark {
             final Thread worker = new Thread(() -> {
                 final TunnelTestHandler handler = new TunnelTestHandler();
 
-                try (final Service ignored = Iris.register(Config.RELAY_PORT, Config.CLUSTER_NAME, handler)) {
+                try (final Service ignored = new Service(Config.RELAY_PORT, Config.CLUSTER_NAME, handler)) {
                     // Wait till all clients and servers connect
                     barrier.await(Config.PHASE_TIMEOUT, TimeUnit.SECONDS);
 
@@ -161,7 +161,7 @@ public class TunnelTest extends AbstractBenchmark {
     // Tests that unanswered tunnels timeout correctly.
     @BenchmarkOptions(benchmarkRounds = 5, warmupRounds = 10)
     @Test public void timeout() throws Exception {
-        try (final Connection conn = Iris.connect(Config.RELAY_PORT)) {
+        try (final Connection conn = new Connection(Config.RELAY_PORT)) {
             // Open a new tunnel to a non existent server
             try (final Tunnel tunnel = conn.tunnel(Config.CLUSTER_NAME, 100)) {
                 Assert.fail("Mismatching tunneling result: have: success, want TimeoutException");
@@ -178,7 +178,7 @@ public class TunnelTest extends AbstractBenchmark {
         final TunnelTestHandler handler = new TunnelTestHandler();
 
         // Register a new service to the relay
-        try (final Service ignored = Iris.register(Config.RELAY_PORT, Config.CLUSTER_NAME, handler)) {
+        try (final Service ignored = new Service(Config.RELAY_PORT, Config.CLUSTER_NAME, handler)) {
             // Construct the tunnel
             try (final Tunnel tunnel = handler.connection.tunnel(Config.CLUSTER_NAME, 1000)) {
                 // Create and transfer a huge message
@@ -202,7 +202,7 @@ public class TunnelTest extends AbstractBenchmark {
         final TunnelTestHandler handler = new TunnelTestHandler();
 
         // Register a new service to the relay
-        try (final Service ignored = Iris.register(Config.RELAY_PORT, Config.CLUSTER_NAME, handler)) {
+        try (final Service ignored = new Service(Config.RELAY_PORT, Config.CLUSTER_NAME, handler)) {
             // Construct the tunnel
             try (final Tunnel tunnel = handler.connection.tunnel(Config.CLUSTER_NAME, 1000)) {
                 // Overload the tunnel by partially transferring huge messages

@@ -33,7 +33,7 @@ public class RequestLatencyBenchmark {
     // Registers a new service to the relay.
     @Setup(Level.Iteration) public void init() throws InterruptedException, IOException, InitializationException {
         handler = new BenchmarkHandler();
-        service = Iris.register(BenchmarkConfigs.RELAY_PORT, BenchmarkConfigs.CLUSTER_NAME, handler);
+        service = new Service(BenchmarkConfigs.RELAY_PORT, BenchmarkConfigs.CLUSTER_NAME, handler);
     }
 
     // Unregisters the service.

@@ -50,7 +50,7 @@ public class TunnelLatencyBenchmark {
         handler = new BenchmarkHandler();
         handler.pending = new Semaphore(0);
 
-        service = Iris.register(BenchmarkConfigs.RELAY_PORT, BenchmarkConfigs.CLUSTER_NAME, handler);
+        service = new Service(BenchmarkConfigs.RELAY_PORT, BenchmarkConfigs.CLUSTER_NAME, handler);
         tunnel = handler.connection.tunnel(BenchmarkConfigs.CLUSTER_NAME, 1000);
     }
 

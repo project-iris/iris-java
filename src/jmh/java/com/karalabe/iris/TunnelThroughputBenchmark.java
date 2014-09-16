@@ -52,7 +52,7 @@ public class TunnelThroughputBenchmark {
         handler = new BenchmarkHandler();
         handler.pending = new Semaphore(0);
 
-        service = Iris.register(BenchmarkConfigs.RELAY_PORT, BenchmarkConfigs.CLUSTER_NAME, handler);
+        service = new Service(BenchmarkConfigs.RELAY_PORT, BenchmarkConfigs.CLUSTER_NAME, handler);
         tunnel = handler.connection.tunnel(BenchmarkConfigs.CLUSTER_NAME, 1000);
     }
 
@@ -64,7 +64,7 @@ public class TunnelThroughputBenchmark {
 
     // Benchmarks the throughput of the tunnel data transfer.
     @Benchmark @OperationsPerInvocation(ITERATIONS) public void timeThroughput() throws InterruptedException, IOException {
-        for (int i=0; i<ITERATIONS; i++) {
+        for (int i = 0; i < ITERATIONS; i++) {
             tunnel.send(new byte[]{0x00});
         }
         handler.pending.acquire(ITERATIONS);

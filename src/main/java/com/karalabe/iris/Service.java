@@ -21,10 +21,28 @@ public class Service implements AutoCloseable {
 
     private final Connection connection; // Network connection to the local Iris relay
 
-    // Connects to the Iris network and registers a new service instance as a member of the
-    // specified service cluster, overriding the default quality of service limits.
-    Service(final int port, @NotNull final String cluster, @NotNull final ServiceHandler handler, @NotNull final ServiceLimits limits) throws IOException, InterruptedException, InitializationException {
-        final ContextualLogger logger = new ContextualLogger(LoggerFactory.getLogger(Iris.class.getPackage().getName()),
+    /**
+     * Connects to the Iris network and registers a new service instance as a
+     * member of the specified service cluster.
+     * @param port    listening TCP endpoint of the locally running Iris node
+     * @param cluster name of the micro-service cluster to join
+     * @param handler callback handler for inbound service events
+     */
+    public Service(final int port, @NotNull final String cluster, @NotNull final ServiceHandler handler) throws IOException, InterruptedException, InitializationException {
+        this(port, cluster, handler, new ServiceLimits());
+    }
+
+    /**
+     * Connects to the Iris network and registers a new service instance as a
+     * member of the specified service cluster, overriding the default quality
+     * of service limits.
+     * @param port    listening TCP endpoint of the locally running Iris node
+     * @param cluster name of the micro-service cluster to join
+     * @param limits  custom resource consumption limits for inbound events
+     * @param handler callback handler for inbound service events
+     */
+    public Service(final int port, @NotNull final String cluster, @NotNull final ServiceHandler handler, @NotNull final ServiceLimits limits) throws IOException, InterruptedException, InitializationException {
+        final ContextualLogger logger = new ContextualLogger(LoggerFactory.getLogger(Service.class.getPackage().getName()),
                                                              "service", String.valueOf(nextServId.incrementAndGet()));
 
         try {

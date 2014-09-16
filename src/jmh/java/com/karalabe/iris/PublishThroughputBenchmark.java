@@ -43,7 +43,7 @@ public class PublishThroughputBenchmark {
         handler = new BenchmarkHandler();
         handler.pending = new Semaphore(0);
 
-        connection = Iris.connect(BenchmarkConfigs.RELAY_PORT);
+        connection = new Connection(BenchmarkConfigs.RELAY_PORT);
         connection.subscribe(BenchmarkConfigs.TOPIC_NAME, handler);
         Thread.sleep(100);
 

@@ -16,26 +16,59 @@ import com.karalabe.iris.schemes.RequestScheme;
 import com.karalabe.iris.schemes.TunnelScheme;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Message relay between the local app and the local iris node.
  */
 public class Connection implements AutoCloseable {
-    private final RelayProtocol    protocol; // Iris relay protocol wire format implementation
-    private final Thread           runner;   // Thread reading and handling the inbound messages
-    private final ServiceHandler   handler;  // Callback handler for inbound service events
-    private final ContextualLogger logger;   // Logger with connection id injected
+    private static final AtomicInteger nextConnId = new AtomicInteger(); // Id to assign to the next connection
+
+    private RelayProtocol    protocol; // Iris relay protocol wire format implementation
+    private Thread           runner;   // Thread reading and handling the inbound messages
+    private ServiceHandler   handler;  // Callback handler for inbound service events
+    private ContextualLogger logger;   // Logger with connection id injected
 
     // Communication pattern implementers
-    private final BroadcastScheme broadcaster;
-    private final RequestScheme   requester;
-    private final PublishScheme   subscriber;
-    private final TunnelScheme    tunneler;
+    private BroadcastScheme broadcaster;
+    private RequestScheme   requester;
+    private PublishScheme   subscriber;
+    private TunnelScheme    tunneler;
 
-    // Connects to the Iris network as a simple client.
+    /**
+     * Connects to the Iris network as a simple client.
+     * @param port listening TCP endpoint of the locally running Iris node
+     */
+    public Connection(final int port) throws IOException {
+        final ContextualLogger logger = new ContextualLogger(LoggerFactory.getLogger(Connection.class.getPackage().getName()),
+                                                             "client", String.valueOf(nextConnId.incrementAndGet()));
+
+        try {
+            // Inject the logger context and try to establish the connection
+            logger.loadContext();
+            logger.info("Connecting new client", "relay_port", String.valueOf(port));
+
+            init(port, "", null, null, logger);
+            logger.info("Client connection established");
+        } catch (IOException e) {
+            logger.warn("Failed to connect new client", "reason", e.getMessage());
+            throw e;
+        } finally {
+            // Ensure the caller isn't polluted with the client context
+            logger.unloadContext();
+        }
+    }
+
+    // Connects to the Iris network as a service connection.
     Connection(final int port, final String cluster, final ServiceHandler handler, final ServiceLimits limits, final ContextualLogger logger) throws IOException {
+        init(port, cluster, handler, limits, logger);
+    }
+
+    // Initializes a relay connection.
+    private void init(final int port, final String cluster, final ServiceHandler handler, final ServiceLimits limits, final ContextualLogger logger) throws IOException {
         Validators.validateClusterName(cluster);
 
         this.handler = handler;
