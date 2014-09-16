@@ -13,7 +13,7 @@ sourceCompatibility = 1.8
 // Basic metadata for the packages
 group = "com.karalabe.iris"
 archivesBaseName = "iris"
-version = "1.0.0-preview-2"
+version = "1.0.0-preview-3"
 
 // Define the dependencies and their repositories
 repositories {

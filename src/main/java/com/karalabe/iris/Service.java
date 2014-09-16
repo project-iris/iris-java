@@ -14,7 +14,7 @@ import java.io.IOException;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * Service instance belonging to a particular cluster in the network.\
+ * Service instance belonging to a particular cluster in the network.
  */
 public class Service implements AutoCloseable {
     private static final AtomicInteger nextServId = new AtomicInteger(); // Id to assign to the next service
