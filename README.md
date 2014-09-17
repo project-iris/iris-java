@@ -129,6 +129,31 @@ try {
 
 Lastly, if during the initialization of a registered service - while the [`init`](http://iris.karalabe.com/docs/iris-java.v1/com/karalabe/iris/ServiceHandler.html#init-com.karalabe.iris.Connection-) callback is running - the user wishes to abort the registration, he should throw an [`InitializationException`](http://iris.karalabe.com/docs/iris-java.v1/com/karalabe/iris/exceptions/InitializationException.html)
 
+### Resource capping
+
+To prevent the network from overwhelming an attached process, the binding places thread and memory limits on the broadcasts/requests inbound to a registered service as well as on the events received by a topic subscription. The thread limit defines the concurrent processing allowance, whereas the memory limit the maximal length of the pending queue.
+
+The default values - listed below - can be overridden during service registration and topic subscription via [`ServiceLimits`](http://iris.karalabe.com/docs/iris-java.v1/com/karalabe/iris/ServiceLimits.html) and [`iris.TopicLimits`](http://iris.karalabe.com/docs/iris-java.v1/com/karalabe/iris/TopicLimits.html). Any unset fields will default to the preset ones.
+
+```go
+// Default limits of the threading and memory usage of a registered service.
+public class ServiceLimits {
+    public int broadcastThreads = 4 * Runtime.getRuntime().availableProcessors();
+    public int broadcastMemory  = 64 * 1024 * 1024;
+    public int requestThreads   = 4 * Runtime.getRuntime().availableProcessors();
+    public int requestMemory    = 64 * 1024 * 1024;
+}
+
+// Default limits of the threading and memory usage of a subscription.
+public class TopicLimits {
+    public int eventThreads = 4 * Runtime.getRuntime().availableProcessors();
+    public int eventMemory  = 64 * 1024 * 1024;
+}
+
+```
+
+There is also a sanity limit on the input buffer of a tunnel, but it is not exposed through the API as tunnels are meant as structural primitives, not sensitive to load. This may change in the future.
+
 ### Additional goodies
 
 You can find a teaser presentation, touching on all the key features of the library through a handful of challenges and their solutions. The recommended version is the [playground](http://play.iris.karalabe.com/talks/binds/java.v1.slide), containing modifiable and executable code snippets, but a [read only](http://iris.karalabe.com/talks/binds/java.v1.slide) one is also available.
