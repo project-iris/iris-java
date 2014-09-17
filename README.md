@@ -85,7 +85,25 @@ public static void main(String[] args) throws Exception {
 }
 ```
 
-Upon successful registration, Iris invokes the handler's `init` method with the live [`Connection`](http://iris.karalabe.com/docs/iris-java.v1/com/karalabe/iris/Connection.html) object - the service's client connection - through which the service itself can initiate outbound requests. The `init` is called only once and is synchronized before any other handler method is invoked.
+Upon successful registration, Iris invokes the handler's [`init`](http://iris.karalabe.com/docs/iris-java.v1/com/karalabe/iris/ServiceHandler.html#init-com.karalabe.iris.Connection-) method with the live [`Connection`](http://iris.karalabe.com/docs/iris-java.v1/com/karalabe/iris/Connection.html) object - the service's client connection - through which the service itself can initiate outbound requests. The [`init`](http://iris.karalabe.com/docs/iris-java.v1/com/karalabe/iris/ServiceHandler.html#init-com.karalabe.iris.Connection-) is called only once and is synchronized before any other handler method is invoked.
+
+### Messaging through Iris
+
+Iris supports four messaging schemes: request/reply, broadcast, tunnel and publish/subscribe. The first three schemes always target a specific cluster: send a request to _one_ member of a cluster and wait for the reply; broadcast a message to _all_ members of a cluster; open a streamed, ordered and throttled communication tunnel to _one_ member of a cluster. The publish/subscribe is similar to broadcast, but _any_ member of the network may subscribe to the same topic, hence breaking cluster boundaries.
+
+<img src="https://dl.dropboxusercontent.com/u/10435909/Iris/messaging_schemes.png" style="height: 175px; display: block; margin-left: auto; margin-right: auto;" \>
+
+Presenting each primitive is out of scope, but for illustrative purposes the request/reply was included. Given the echo service registered above, we can send it requests and wait for replies through any client connection. Iris will automatically locate, route and load balanced between all services registered under the addressed name.
+
+```java
+final byte[] request = "Some request binary".getBytes();
+try {
+    final byte[] reply = conn.request("echo", request, 1000);
+    System.out.println("Reply arrived: " + new String(reply));
+} catch (TimeoutException | RemoteException e) {
+    System.out.println("Failed to execute request: " + e.getMessage());
+}
+```
 
   Contributions
 -----------------
