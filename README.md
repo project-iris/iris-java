@@ -105,6 +105,34 @@ try {
 }
 ```
 
+### Error handling
+
+The binding uses the idiomatic Java error handling mechanisms of throwing checked exceptions whenever a failure occurs. However, there are a few common cases that need to be individually checkable, hence a few special exception types have been introduced.
+
+Many operations - such as requests and tunnels - can time out. To allow checking for this particular failure, Iris throws a [`TimeoutException`](http://iris.karalabe.com/docs/iris-java.v1/com/karalabe/iris/exceptions/TimeoutException.html) in such scenarios. Similarly, connections, services and tunnels may fail, in the case of which all pending operations terminate with a [`ClosedException`](http://iris.karalabe.com/docs/iris-java.v1/com/karalabe/iris/exceptions/ClosedException.html).
+
+Additionally, the requests/reply pattern supports sending back an error instead of a reply to the caller. To enable the originating node to check whether a request failed locally or remotely, all remote errors are wrapped in a [`RemoteException`](http://iris.karalabe.com/docs/iris-java.v1/com/karalabe/iris/exceptions/RemoteException.html).
+
+```java
+try {
+    conn.request("echo", request, 1000);
+} catch (TimeoutException e) {
+    // Request timed out
+} catch (ClosedException e) {
+    // Connection terminated
+} catch (RemoteException e) {
+    // Request failed remotely
+} catch (IOException e) {
+    // Requesting failed locally
+}
+```
+
+Lastly, if during the initialization of a registered service - while the [`init`](http://iris.karalabe.com/docs/iris-java.v1/com/karalabe/iris/ServiceHandler.html#init-com.karalabe.iris.Connection-) callback is running - the user wishes to abort the registration, he should throw an [`InitializationException`](http://iris.karalabe.com/docs/iris-java.v1/com/karalabe/iris/exceptions/InitializationException.html)
+
+### Additional goodies
+
+You can find a teaser presentation, touching on all the key features of the library through a handful of challenges and their solutions. The recommended version is the [playground](http://play.iris.karalabe.com/talks/binds/java.v1.slide), containing modifiable and executable code snippets, but a [read only](http://iris.karalabe.com/talks/binds/java.v1.slide) one is also available.
+
   Contributions
 -----------------
 
