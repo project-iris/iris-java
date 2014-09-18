@@ -135,7 +135,7 @@ To prevent the network from overwhelming an attached process, the binding places
 
 The default values - listed below - can be overridden during service registration and topic subscription via [`ServiceLimits`](http://iris.karalabe.com/docs/iris-java.v1/com/karalabe/iris/ServiceLimits.html) and [`iris.TopicLimits`](http://iris.karalabe.com/docs/iris-java.v1/com/karalabe/iris/TopicLimits.html). Any unset fields will default to the preset ones.
 
-```go
+```java
 // Default limits of the threading and memory usage of a registered service.
 public class ServiceLimits {
     public int broadcastThreads = 4 * Runtime.getRuntime().availableProcessors();
