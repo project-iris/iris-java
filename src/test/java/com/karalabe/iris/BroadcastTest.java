@@ -8,12 +8,9 @@ package com.karalabe.iris;
 import com.carrotsearch.junitbenchmarks.AbstractBenchmark;
 import com.carrotsearch.junitbenchmarks.BenchmarkOptions;
 import com.karalabe.iris.exceptions.ClosedException;
-import com.karalabe.iris.exceptions.RemoteException;
-import com.karalabe.iris.exceptions.TimeoutException;
 import org.junit.Assert;
 import org.junit.Test;
 
-import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.CyclicBarrier;

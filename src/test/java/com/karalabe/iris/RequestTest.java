@@ -270,7 +270,7 @@ public class RequestTest extends AbstractBenchmark {
     @BenchmarkOptions(benchmarkRounds = 5, warmupRounds = 10)
     @Test public void terminate() throws Exception {
         // Test specific configurations
-        final int SLEEP = 250;
+        final int SLEEP = 500;
 
         // Create the service handler and register it
         final RequestTestSuccessHandler handler = new RequestTestSuccessHandler(SLEEP);
