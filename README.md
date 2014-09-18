@@ -22,11 +22,11 @@ There is a growing community on Twitter [@iriscmf](https://twitter.com/iriscmf),
   Installation
 ----------------
 
-To get the package, add the following Maven dependency ([details](http://search.maven.org/#artifactdetails%7Ccom.karalabe.iris%7Ciris%7C1.0.0-preview-3%7Cjar) for various build systems):
+To get the package, add the following Maven dependency ([details](http://search.maven.org/#artifactdetails%7Ccom.karalabe.iris%7Ciris%7C1.0.0-preview-4%7Cjar) for various build systems):
 
  - Group ID: com.karalabe.iris
  - Artifact ID: iris
- - Version: 1.0.0-preview-3
+ - Version: 1.0.0-preview-4
 
 To import this package, add the following line to your code:
 
@@ -227,13 +227,14 @@ Although you could run the tests through your favorite IDE, they can also be exe
 ```
 $ ./gradlew test
 [...]
+com.kalralabe.iris.TunnelInterruptTest > interruptRemoteSend PASSED
+com.kalralabe.iris.TunnelInterruptTest > interruptLocalReceive PASSED
+com.kalralabe.iris.TunnelInterruptTest > interruptLocalSend PASSED
+com.kalralabe.iris.TunnelInterruptTest > interruptRemoteReceive PASSED
 com.karalabe.iris.BroadcastTest > concurrentBroadcasts PASSED
 com.karalabe.iris.BroadcastTest > threadLimiting PASSED
 com.karalabe.iris.BroadcastTest > memoryLimiting PASSED
-com.karalabe.iris.TunnelTest > timeout PASSED
-com.karalabe.iris.TunnelTest > concurrentTunnels PASSED
-com.karalabe.iris.TunnelTest > overload PASSED
-com.karalabe.iris.TunnelTest > chunking PASSED
+com.karalabe.iris.BroadcastTest > terminate PASSED
 com.karalabe.iris.HandshakeTest > connection PASSED
 com.karalabe.iris.HandshakeTest > service PASSED
 com.karalabe.iris.RequestTest > timeout PASSED
@@ -242,15 +243,21 @@ com.karalabe.iris.RequestTest > fail PASSED
 com.karalabe.iris.RequestTest > threadLimiting PASSED
 com.karalabe.iris.RequestTest > memoryLimiting PASSED
 com.karalabe.iris.RequestTest > concurrentRequests PASSED
+com.karalabe.iris.RequestTest > terminate PASSED
 com.karalabe.iris.PublishTest > concurrentPublishes PASSED
 com.karalabe.iris.PublishTest > threadLimiting PASSED
 com.karalabe.iris.PublishTest > memoryLimiting PASSED
+com.karalabe.iris.PublishTest > terminate PASSED
+com.karalabe.iris.TunnelGeneralTest > timeout PASSED
+com.karalabe.iris.TunnelGeneralTest > concurrentTunnels PASSED
+com.karalabe.iris.TunnelGeneralTest > overload PASSED
+com.karalabe.iris.TunnelGeneralTest > chunking PASSED
 com.karalabe.iris.common.BoundedThreadPoolTest > schedule PASSED
 com.karalabe.iris.common.BoundedThreadPoolTest > capacity PASSED
 
 BUILD SUCCESSFUL
 
-Total time: 2 mins 3.594 secs
+Total time: 2 mins 49.985 secs
 ```
 
 Benchmarking can be run similarly through [Gradle](http://www.gradle.org/), but since it requires a few additional dependencies and hacks, a separate build file was provided for it. Note, that even on a powerful machine, the benchmarks can easily take 10-15 minutes to complete.
