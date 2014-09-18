@@ -217,6 +217,79 @@ As you can see below, all log entries have been automatically tagged with the `c
 
 You can find a teaser presentation, touching on all the key features of the library through a handful of challenges and their solutions. The recommended version is the [playground](http://play.iris.karalabe.com/talks/binds/java.v1.slide), containing modifiable and executable code snippets, but a [read only](http://iris.karalabe.com/talks/binds/java.v1.slide) one is also available.
 
+  Testing and benchmarking
+----------------------------
+
+To run the tests, a local Iris node needs to be listening on port `55555`. Please see the first paragraph of the [Quickstart](#--quickstart) section if you need help starting a local Iris node in developer mode.
+
+Although you could run the tests through your favorite IDE, they can also be executed from the command line through the bundled [Gradle](http://www.gradle.org/) build system. A detailed report will be generated into `build/reports/tests/index.html`.
+
+```
+$ ./gradlew test
+[...]
+com.karalabe.iris.BroadcastTest > concurrentBroadcasts PASSED
+com.karalabe.iris.BroadcastTest > threadLimiting PASSED
+com.karalabe.iris.BroadcastTest > memoryLimiting PASSED
+com.karalabe.iris.TunnelTest > timeout PASSED
+com.karalabe.iris.TunnelTest > concurrentTunnels PASSED
+com.karalabe.iris.TunnelTest > overload PASSED
+com.karalabe.iris.TunnelTest > chunking PASSED
+com.karalabe.iris.HandshakeTest > connection PASSED
+com.karalabe.iris.HandshakeTest > service PASSED
+com.karalabe.iris.RequestTest > timeout PASSED
+com.karalabe.iris.RequestTest > expiration PASSED
+com.karalabe.iris.RequestTest > fail PASSED
+com.karalabe.iris.RequestTest > threadLimiting PASSED
+com.karalabe.iris.RequestTest > memoryLimiting PASSED
+com.karalabe.iris.RequestTest > concurrentRequests PASSED
+com.karalabe.iris.PublishTest > concurrentPublishes PASSED
+com.karalabe.iris.PublishTest > threadLimiting PASSED
+com.karalabe.iris.PublishTest > memoryLimiting PASSED
+com.karalabe.iris.common.BoundedThreadPoolTest > schedule PASSED
+com.karalabe.iris.common.BoundedThreadPoolTest > capacity PASSED
+
+BUILD SUCCESSFUL
+
+Total time: 2 mins 3.594 secs
+```
+
+Benchmarking can be run similarly through [Gradle](http://www.gradle.org/), but since it requires a few additional dependencies and hacks, a separate build file was provided for it. Note, that even on a powerful machine, the benchmarks can easily take 10-15 minutes to complete.
+
+```
+$ ./gradlew -b benchmark.gradle
+[...]
+Benchmark                                            (threads)  Mode  Samples      Score  Score error  Units
+c.k.i.BroadcastLatencyBenchmark.timeLatency                N/A  avgt       10  43520.931      308.018  ns/op
+c.k.i.BroadcastThroughputBenchmark.timeThroughput            1  avgt       10   6319.438       80.407  ns/op
+c.k.i.BroadcastThroughputBenchmark.timeThroughput            2  avgt       10   6100.754       83.353  ns/op
+c.k.i.BroadcastThroughputBenchmark.timeThroughput            4  avgt       10   5890.325       60.563  ns/op
+c.k.i.BroadcastThroughputBenchmark.timeThroughput            8  avgt       10   5808.757       77.102  ns/op
+c.k.i.BroadcastThroughputBenchmark.timeThroughput           16  avgt       10   5833.382       72.365  ns/op
+c.k.i.BroadcastThroughputBenchmark.timeThroughput           32  avgt       10   5834.460      115.848  ns/op
+c.k.i.BroadcastThroughputBenchmark.timeThroughput           64  avgt       10   5811.011       72.177  ns/op
+c.k.i.BroadcastThroughputBenchmark.timeThroughput          128  avgt       10   5868.079       50.772  ns/op
+c.k.i.PublishLatencyBenchmark.timeLatency                  N/A  avgt       10  43745.582      368.617  ns/op
+c.k.i.PublishThroughputBenchmark.timeThroughput              1  avgt       10   6394.818       74.003  ns/op
+c.k.i.PublishThroughputBenchmark.timeThroughput              2  avgt       10   6151.742       53.705  ns/op
+c.k.i.PublishThroughputBenchmark.timeThroughput              4  avgt       10   5948.397       58.813  ns/op
+c.k.i.PublishThroughputBenchmark.timeThroughput              8  avgt       10   5884.619       68.342  ns/op
+c.k.i.PublishThroughputBenchmark.timeThroughput             16  avgt       10   5885.899       65.779  ns/op
+c.k.i.PublishThroughputBenchmark.timeThroughput             32  avgt       10   5884.120       72.272  ns/op
+c.k.i.PublishThroughputBenchmark.timeThroughput             64  avgt       10   5899.128       60.878  ns/op
+c.k.i.PublishThroughputBenchmark.timeThroughput            128  avgt       10   5953.129       55.586  ns/op
+c.k.i.RequestLatencyBenchmark.timeLatency                  N/A  avgt       10  87767.815      720.325  ns/op
+c.k.i.RequestThroughputBenchmark.timeThroughput              1  avgt       10  89687.872      631.716  ns/op
+c.k.i.RequestThroughputBenchmark.timeThroughput              2  avgt       10  56079.857      300.517  ns/op
+c.k.i.RequestThroughputBenchmark.timeThroughput              4  avgt       10  38995.321      236.724  ns/op
+c.k.i.RequestThroughputBenchmark.timeThroughput              8  avgt       10  29960.518      256.718  ns/op
+c.k.i.RequestThroughputBenchmark.timeThroughput             16  avgt       10  23954.222      273.733  ns/op
+c.k.i.RequestThroughputBenchmark.timeThroughput             32  avgt       10  20378.569      244.354  ns/op
+c.k.i.RequestThroughputBenchmark.timeThroughput             64  avgt       10  19706.103      321.938  ns/op
+c.k.i.RequestThroughputBenchmark.timeThroughput            128  avgt       10  19781.863      228.609  ns/op
+c.k.i.TunnelLatencyBenchmark.timeLatency                   N/A  avgt       10  92653.436     1269.613  ns/op
+c.k.i.TunnelThroughputBenchmark.timeThroughput             N/A  avgt       10  15238.044      158.442  ns/op
+```
+
   Contributions
 -----------------
 

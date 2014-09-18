@@ -27,3 +27,10 @@ dependencies {
     testCompile 'com.carrotsearch:junit-benchmarks:0.7.0'
     testCompile 'ch.qos.logback:logback-classic:0.9.26'
 }
+
+// Display some progress reports during testing
+test {
+    testLogging {
+        events "passed", "skipped", "failed"
+    }
+}

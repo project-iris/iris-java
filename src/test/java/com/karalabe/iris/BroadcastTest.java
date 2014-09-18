@@ -75,10 +75,10 @@ public class BroadcastTest extends AbstractBenchmark {
                 final BroadcastTestHandler handler = new BroadcastTestHandler();
 
                 try (final Service ignored = new Service(Config.RELAY_PORT, Config.CLUSTER_NAME, handler)) {
-                    // Wait till all clients and servers connect
                     handler.pending = new Semaphore((CLIENT_COUNT + SERVER_COUNT) * MESSAGE_COUNT);
                     handler.pending.acquire((CLIENT_COUNT + SERVER_COUNT) * MESSAGE_COUNT);
 
+                    // Wait till all clients and servers connect
                     barrier.await(Config.PHASE_TIMEOUT, TimeUnit.SECONDS);
 
                     // Send all the service broadcasts
