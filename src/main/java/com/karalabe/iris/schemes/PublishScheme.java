@@ -9,11 +9,13 @@ import com.karalabe.iris.TopicHandler;
 import com.karalabe.iris.TopicLimits;
 import com.karalabe.iris.common.BoundedThreadPool;
 import com.karalabe.iris.common.ContextualLogger;
+import com.karalabe.iris.exceptions.ClosedException;
 import com.karalabe.iris.protocol.RelayProtocol;
 
 import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 // Implements the publish/subscribe communication pattern.
@@ -31,6 +33,7 @@ public class PublishScheme {
 
     private final AtomicInteger             nextId = new AtomicInteger();       // Unique identifier for the next subscription
     private final Map<String, Subscription> active = new ConcurrentHashMap<>(); // Active topic subscription pool
+    private final AtomicBoolean             closed = new AtomicBoolean(false);  // Flag specifying if the connection was closed
 
     // Constructs a publish/subscribe scheme implementation.
     public PublishScheme(final RelayProtocol protocol, final ContextualLogger logger) {
@@ -39,7 +42,11 @@ public class PublishScheme {
     }
 
     // Relays a subscription request to the local Iris node.
-    public void subscribe(final String topic, final TopicHandler handler, final TopicLimits limits) throws IOException {
+    public void subscribe(final String topic, final TopicHandler handler, final TopicLimits limits) throws IOException, ClosedException {
+        // Ensure the connection hasn't been closed yet
+        if (closed.get()) {
+            throw new ClosedException("Connection already closed!");
+        }
         // Make sure double subscriptions result in a failure
         final Subscription sub = new Subscription();
         synchronized (active) {
@@ -66,7 +73,11 @@ public class PublishScheme {
     }
 
     // Relays a subscription removal request to the local Iris node.
-    public void unsubscribe(final String topic) throws IOException {
+    public void unsubscribe(final String topic) throws IOException, ClosedException {
+        // Ensure the connection hasn't been closed yet
+        if (closed.get()) {
+            throw new ClosedException("Connection already closed!");
+        }
         // Make sure there's an active subscription
         final Subscription sub;
         synchronized (active) {
@@ -92,7 +103,11 @@ public class PublishScheme {
     }
 
     // Relays an event publish to the local Iris node.
-    public void publish(final String topic, final byte[] event) throws IOException {
+    public void publish(final String topic, final byte[] event) throws IOException, ClosedException {
+        // Ensure the connection hasn't been closed yet
+        if (closed.get()) {
+            throw new ClosedException("Connection already closed!");
+        }
         protocol.sendPublish(topic, event);
     }
 
@@ -119,6 +134,10 @@ public class PublishScheme {
 
     // Terminates the publish/subscribe primitive.
     public void close() throws InterruptedException {
+        // Make sure all new operations fail
+        closed.set(true);
+
+        // Terminate every live subscription
         for (final Subscription sub : active.values()) {
             sub.logger.loadContext();
             sub.logger.warn("Forcefully terminating subscription");

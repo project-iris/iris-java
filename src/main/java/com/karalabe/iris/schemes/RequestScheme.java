@@ -61,7 +61,7 @@ public class RequestScheme {
     public byte[] request(final String cluster, final byte[] request, final long timeout) throws IOException, ClosedException, RemoteException, TimeoutException {
         // Ensure the connection hasn't been closed yet
         if (closed.get()) {
-            throw new ClosedException();
+            throw new ClosedException("Connection already closed!");
         }
         // Fetch a unique ID for the request
         final long id = nextId.incrementAndGet();

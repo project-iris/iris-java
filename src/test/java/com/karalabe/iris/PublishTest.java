@@ -7,6 +7,7 @@ package com.karalabe.iris;
 
 import com.carrotsearch.junitbenchmarks.AbstractBenchmark;
 import com.carrotsearch.junitbenchmarks.BenchmarkOptions;
+import com.karalabe.iris.exceptions.ClosedException;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -238,6 +239,46 @@ public class PublishTest extends AbstractBenchmark {
 
             // Clean up the topic subscription
             conn.unsubscribe(TestConfigs.TOPIC_NAME);
+        }
+    }
+
+    // Tests that a closed connection prevents new publishes.
+    @BenchmarkOptions(benchmarkRounds = 5, warmupRounds = 10)
+    @Test public void terminate() throws Exception {
+        // Connect with a client and check that the pub/sub calls work
+        final Connection conn = new Connection(TestConfigs.RELAY_PORT);
+        conn.subscribe(TestConfigs.TOPIC_NAME, new PublishTestTopicHandler(0));
+        Thread.sleep(100); // TODO: Work around Iris issue https://github.com/project-iris/iris/issues/50
+        conn.unsubscribe(TestConfigs.TOPIC_NAME);
+        conn.publish(TestConfigs.TOPIC_NAME, new byte[]{0x00});
+        conn.close();
+
+        // Verify that the call invocations now fail
+        try {
+            conn.subscribe(TestConfigs.TOPIC_NAME, new PublishTestTopicHandler(0));
+            Assert.fail("Subscribe succeeded on closed connection");
+        } catch (ClosedException ignore) {
+            // Ok, connection was indeed closed
+        } catch (Exception e) {
+            Assert.fail("Subscribe didn't report closure: " + e.getMessage());
+        }
+
+        try {
+            conn.unsubscribe(TestConfigs.TOPIC_NAME);
+            Assert.fail("Unsubscribe succeeded on closed connection");
+        } catch (ClosedException ignore) {
+            // Ok, connection was indeed closed
+        } catch (Exception e) {
+            Assert.fail("Unsubscribe didn't report closure: " + e.getMessage());
+        }
+
+        try {
+            conn.publish(TestConfigs.TOPIC_NAME, new byte[]{0x00});
+            Assert.fail("Publish succeeded on closed connection");
+        } catch (ClosedException ignore) {
+            // Ok, connection was indeed closed
+        } catch (Exception e) {
+            Assert.fail("Publish didn't report closure: " + e.getMessage());
         }
     }
 }

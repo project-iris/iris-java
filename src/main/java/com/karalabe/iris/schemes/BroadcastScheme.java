@@ -9,9 +9,11 @@ import com.karalabe.iris.ServiceHandler;
 import com.karalabe.iris.ServiceLimits;
 import com.karalabe.iris.common.BoundedThreadPool;
 import com.karalabe.iris.common.ContextualLogger;
+import com.karalabe.iris.exceptions.ClosedException;
 import com.karalabe.iris.protocol.RelayProtocol;
 
 import java.io.IOException;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 // Implements the broadcast communication pattern.
 public class BroadcastScheme {
@@ -20,6 +22,8 @@ public class BroadcastScheme {
     private final ServiceLimits     limits;   // Service handler resource consumption allowance
     private final BoundedThreadPool workers;  // Thread pool for limiting the concurrent processing
     private final ContextualLogger  logger;   // Logger with connection id injected
+
+    private final AtomicBoolean closed = new AtomicBoolean(false); // Flag specifying if the connection was closed
 
     // Constructs a broadcast scheme implementation.
     public BroadcastScheme(final RelayProtocol protocol, final ServiceHandler handler, final ServiceLimits limits, final ContextualLogger logger) {
@@ -36,7 +40,11 @@ public class BroadcastScheme {
     }
 
     // Relays a broadcast operation to the local Iris node.
-    public void broadcast(final String cluster, final byte[] message) throws IOException {
+    public void broadcast(final String cluster, final byte[] message) throws IOException, ClosedException {
+        // Ensure the connection hasn't been closed yet
+        if (closed.get()) {
+            throw new ClosedException("Connection already closed!");
+        }
         protocol.sendBroadcast(cluster, message);
     }
 
@@ -56,6 +64,10 @@ public class BroadcastScheme {
 
     // Terminates the broadcast primitive.
     public void close() throws InterruptedException {
+        // Make sure all new broadcasts fail
+        closed.set(true);
+
+        // Interrupt all broadcast processors
         if (workers != null) {
             workers.terminate(true);
         }

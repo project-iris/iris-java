@@ -96,7 +96,7 @@ public class Connection implements AutoCloseable {
      * @param cluster name of the micro-service cluster to broadcast a message to
      * @param message binary data contents of the message to broadcast
      */
-    public void broadcast(@NotNull final String cluster, @NotNull final byte[] message) throws IOException {
+    public void broadcast(@NotNull final String cluster, @NotNull final byte[] message) throws IOException, ClosedException {
         Validators.validateClusterAddress(cluster);
         Validators.validateBroadcastPayload(message);
 
@@ -129,7 +129,7 @@ public class Connection implements AutoCloseable {
      * @param topic   name of the topic to subscribe to
      * @param handler callback handler for inbound events published to the topic
      */
-    public void subscribe(@NotNull final String topic, @NotNull final TopicHandler handler) throws IOException {
+    public void subscribe(@NotNull final String topic, @NotNull final TopicHandler handler) throws IOException, ClosedException {
         subscribe(topic, handler, null);
     }
 
@@ -144,7 +144,7 @@ public class Connection implements AutoCloseable {
      * @param handler callback handler for inbound events published to the topic
      * @param limits  custom resource consumption limits for inbound events
      */
-    public void subscribe(@NotNull final String topic, @NotNull final TopicHandler handler, @Nullable TopicLimits limits) throws IOException {
+    public void subscribe(@NotNull final String topic, @NotNull final TopicHandler handler, @Nullable TopicLimits limits) throws IOException, ClosedException {
         Validators.validateTopicName(topic);
         if (limits == null) { limits = new TopicLimits(); }
         subscriber.subscribe(topic, handler, limits);
@@ -158,7 +158,7 @@ public class Connection implements AutoCloseable {
      * @param topic name of the topic into which to publish the event
      * @param event binary data contents of the event to publish
      */
-    public void publish(@NotNull final String topic, @NotNull final byte[] event) throws IOException {
+    public void publish(@NotNull final String topic, @NotNull final byte[] event) throws IOException, ClosedException {
         Validators.validateTopicName(topic);
         Validators.validatePublishPayload(event);
 
@@ -171,7 +171,7 @@ public class Connection implements AutoCloseable {
      * The method blocks until the unsubscription is forwarded to the local Iris node.
      * @param topic name of the topic to unsubscribe from
      */
-    public void unsubscribe(@NotNull final String topic) throws IOException {
+    public void unsubscribe(@NotNull final String topic) throws IOException, ClosedException {
         Validators.validateTopicName(topic);
         subscriber.unsubscribe(topic);
     }

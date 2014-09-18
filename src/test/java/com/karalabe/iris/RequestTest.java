@@ -268,7 +268,7 @@ public class RequestTest extends AbstractBenchmark {
 
     // Tests that a failing connection interrupts pending requests.
     @BenchmarkOptions(benchmarkRounds = 5, warmupRounds = 10)
-    @Test public void interrupt() throws Exception {
+    @Test public void terminate() throws Exception {
         // Test specific configurations
         final int SLEEP = 250;
 
@@ -295,7 +295,7 @@ public class RequestTest extends AbstractBenchmark {
             conn.close();
 
             // Verify the request interruption and failure to schedule new
-            Assert.assertTrue(done.tryAcquire(100, TimeUnit.MILLISECONDS));
+            Assert.assertTrue(done.tryAcquire(1, TimeUnit.SECONDS));
             try {
                 conn.request(TestConfigs.CLUSTER_NAME, new byte[]{0x00}, 1000);
                 Assert.fail("Request succeeded on closed connection");

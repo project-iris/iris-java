@@ -7,9 +7,13 @@ package com.karalabe.iris;
 
 import com.carrotsearch.junitbenchmarks.AbstractBenchmark;
 import com.carrotsearch.junitbenchmarks.BenchmarkOptions;
+import com.karalabe.iris.exceptions.ClosedException;
+import com.karalabe.iris.exceptions.RemoteException;
+import com.karalabe.iris.exceptions.TimeoutException;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.CyclicBarrier;
@@ -171,6 +175,25 @@ public class BroadcastTest extends AbstractBenchmark {
             // Check that space freed gets replenished
             handler.connection.broadcast(TestConfigs.CLUSTER_NAME, new byte[]{0x00});
             Assert.assertTrue(handler.pending.tryAcquire(100, TimeUnit.MILLISECONDS));
+        }
+    }
+
+    // Tests that a closed connection prevents new broadcasts.
+    @BenchmarkOptions(benchmarkRounds = 5, warmupRounds = 10)
+    @Test public void terminate() throws Exception {
+        // Connect with a client and check that broadcasting succeeds
+        final Connection conn = new Connection(TestConfigs.RELAY_PORT);
+        conn.broadcast(TestConfigs.CLUSTER_NAME, new byte[]{0x00});
+        conn.close();
+
+        // Verify that broadcasting now fail
+        try {
+            conn.broadcast(TestConfigs.CLUSTER_NAME, new byte[]{0x00});
+            Assert.fail("Broadcast succeeded on closed connection");
+        } catch (ClosedException ignore) {
+            // Ok, connection was indeed closed
+        } catch (Exception e) {
+            Assert.fail("Broadcast didn't report closure: " + e.getMessage());
         }
     }
 }
