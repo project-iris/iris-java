@@ -284,6 +284,7 @@ public class RequestTest extends AbstractBenchmark {
                 try {
                     conn.request(TestConfigs.CLUSTER_NAME, new byte[]{0x00}, 1000);
                 } catch (IOException | RemoteException | TimeoutException ignore) {
+                    ignore.printStackTrace();
                     // Not what we expected, time out
                 } catch (ClosedException ignore) {
                     done.release();
