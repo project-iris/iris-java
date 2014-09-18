@@ -23,31 +23,31 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.LongAdder;
 
-@SuppressWarnings("JUnitTestNG")
+@SuppressWarnings({"JUnitTestNG", "ProhibitedExceptionDeclared"})
 public class RequestTest extends AbstractBenchmark {
     // Service handler for the request/reply tests.
-    static class RequestTestHandler implements ServiceHandler {
-        Connection connection;
+    static class RequestTestSuccessHandler extends BaseServiceHandler {
+        final AtomicInteger done = new AtomicInteger(0);
+        final int sleep;
 
-        @Override public void init(final Connection connection) {
-            this.connection = connection;
-        }
+        RequestTestSuccessHandler(final int sleep) { this.sleep = sleep; }
 
         @Override public byte[] handleRequest(final byte[] request) {
+            // Simulate some processing time
+            try {
+                Thread.sleep(sleep);
+            } catch (InterruptedException ignore) { }
+
+            // Return the processing result
+            done.incrementAndGet();
             return request;
         }
     }
 
     // Service handler for the request/reply failure tests.
-    static class RequestTestFailHandler implements ServiceHandler {
-        Connection connection;
-
-        @Override public void init(final Connection connection) {
-            this.connection = connection;
-        }
-
+    static class RequestTestFailureHandler extends BaseServiceHandler {
         @Override public byte[] handleRequest(final byte[] request) throws RemoteException {
-            throw new RemoteException(new String(request));
+            throw new RemoteException(new String(request, StandardCharsets.UTF_8));
         }
     }
 
@@ -64,21 +64,21 @@ public class RequestTest extends AbstractBenchmark {
         for (int i = 0; i < CLIENT_COUNT; i++) {
             final int client = i;
             final Thread worker = new Thread(() -> {
-                try (final Connection conn = new Connection(Config.RELAY_PORT)) {
+                try (final Connection conn = new Connection(TestConfigs.RELAY_PORT)) {
                     // Wait till all clients and servers connect
-                    barrier.await(Config.PHASE_TIMEOUT, TimeUnit.SECONDS);
+                    barrier.await(TestConfigs.PHASE_TIMEOUT, TimeUnit.SECONDS);
 
                     // Request from the service cluster
                     for (int j = 0; j < REQUEST_COUNT; j++) {
                         final String request = String.format("client #%d, request %d", client, j);
                         final byte[] requestBlob = request.getBytes(StandardCharsets.UTF_8);
 
-                        final byte[] replyBlob = conn.request(Config.CLUSTER_NAME, requestBlob, 1000);
+                        final byte[] replyBlob = conn.request(TestConfigs.CLUSTER_NAME, requestBlob, 1000);
                         final String reply = new String(replyBlob, StandardCharsets.UTF_8);
 
                         Assert.assertEquals(reply, request);
                     }
-                    barrier.await(Config.PHASE_TIMEOUT, TimeUnit.SECONDS);
+                    barrier.await(TestConfigs.PHASE_TIMEOUT, TimeUnit.SECONDS);
                 } catch (Exception e) {
                     errors.add(e);
                 }
@@ -91,23 +91,23 @@ public class RequestTest extends AbstractBenchmark {
         for (int i = 0; i < SERVER_COUNT; i++) {
             final int server = i;
             final Thread worker = new Thread(() -> {
-                final RequestTestHandler handler = new RequestTestHandler();
+                final RequestTestSuccessHandler handler = new RequestTestSuccessHandler(0);
 
-                try (final Service ignored = new Service(Config.RELAY_PORT, Config.CLUSTER_NAME, handler)) {
+                try (final Service ignored = new Service(TestConfigs.RELAY_PORT, TestConfigs.CLUSTER_NAME, handler)) {
                     // Wait till all clients and servers connect
-                    barrier.await(Config.PHASE_TIMEOUT, TimeUnit.SECONDS);
+                    barrier.await(TestConfigs.PHASE_TIMEOUT, TimeUnit.SECONDS);
 
                     // Request from the service cluster
                     for (int j = 0; j < REQUEST_COUNT; j++) {
                         final String request = String.format("server #%d, request %d", server, j);
                         final byte[] requestBlob = request.getBytes(StandardCharsets.UTF_8);
 
-                        final byte[] replyBlob = handler.connection.request(Config.CLUSTER_NAME, requestBlob, 1000);
+                        final byte[] replyBlob = handler.connection.request(TestConfigs.CLUSTER_NAME, requestBlob, 1000);
                         final String reply = new String(replyBlob, StandardCharsets.UTF_8);
 
                         Assert.assertEquals(reply, request);
                     }
-                    barrier.await(Config.PHASE_TIMEOUT, TimeUnit.SECONDS);
+                    barrier.await(TestConfigs.PHASE_TIMEOUT, TimeUnit.SECONDS);
                 } catch (Exception e) {
                     errors.add(e);
                 }
@@ -117,10 +117,10 @@ public class RequestTest extends AbstractBenchmark {
         }
         // Schedule the parallel operations
         try {
-            barrier.await(Config.PHASE_TIMEOUT, TimeUnit.SECONDS);
+            barrier.await(TestConfigs.PHASE_TIMEOUT, TimeUnit.SECONDS);
             Assert.assertTrue(errors.isEmpty());
 
-            barrier.await(Config.PHASE_TIMEOUT, TimeUnit.SECONDS);
+            barrier.await(TestConfigs.PHASE_TIMEOUT, TimeUnit.SECONDS);
             Assert.assertTrue(errors.isEmpty());
         } finally {
             for (Thread worker : workers) {
@@ -136,38 +136,19 @@ public class RequestTest extends AbstractBenchmark {
         final int REQUEST_COUNT = 125;
 
         // Create the service handler
-        final RequestTestFailHandler handler = new RequestTestFailHandler();
-        try (final Service ignored = new Service(Config.RELAY_PORT, Config.CLUSTER_NAME, handler)) {
+        final RequestTestFailureHandler handler = new RequestTestFailureHandler();
+        try (final Service ignored = new Service(TestConfigs.RELAY_PORT, TestConfigs.CLUSTER_NAME, handler)) {
             // Request from the failing service cluster
             for (int i = 0; i < REQUEST_COUNT; i++) {
                 final String request = String.format("failure %d", i);
                 final byte[] requestBlob = request.getBytes(StandardCharsets.UTF_8);
 
                 try {
-                    handler.connection.request(Config.CLUSTER_NAME, requestBlob, 1000);
+                    handler.connection.request(TestConfigs.CLUSTER_NAME, requestBlob, 1000);
                     Assert.fail("Request succeeded, should have failed!");
                 } catch (RemoteException e) {
                     Assert.assertEquals(request, e.getMessage());
                 }
-            }
-        }
-    }
-
-    // Service handler for the thread limited request tests.
-    static class RequestTestTimedHandler implements ServiceHandler {
-        Connection connection;
-        int        sleep;
-
-        @Override public void init(final Connection connection) {
-            this.connection = connection;
-        }
-
-        @Override public byte[] handleRequest(final byte[] request) {
-            try {
-                Thread.sleep(sleep);
-                return request;
-            } catch (InterruptedException e) {
-                throw new IllegalStateException(e);
             }
         }
     }
@@ -177,15 +158,12 @@ public class RequestTest extends AbstractBenchmark {
     @Test public void timeout() throws Exception {
         final int SLEEP = 100;
 
-        // Create the service handler
-        final RequestTestTimedHandler handler = new RequestTestTimedHandler();
-        handler.sleep = SLEEP;
-
-        try (final Service ignored = new Service(Config.RELAY_PORT, Config.CLUSTER_NAME, handler)) {
+        final RequestTestSuccessHandler handler = new RequestTestSuccessHandler(SLEEP);
+        try (final Service ignored = new Service(TestConfigs.RELAY_PORT, TestConfigs.CLUSTER_NAME, handler)) {
             // Check that the timeouts are complied with.
-            handler.connection.request(Config.CLUSTER_NAME, new byte[]{0x00}, SLEEP * 2);
+            handler.connection.request(TestConfigs.CLUSTER_NAME, new byte[]{0x00}, SLEEP * 2);
 
-            handler.connection.request(Config.CLUSTER_NAME, new byte[]{0x00}, SLEEP / 2);
+            handler.connection.request(TestConfigs.CLUSTER_NAME, new byte[]{0x00}, SLEEP / 2);
             Assert.fail();
         } catch (TimeoutException ignored) {} catch (Exception e) {
             Assert.fail();
@@ -198,19 +176,17 @@ public class RequestTest extends AbstractBenchmark {
         final int REQUEST_COUNT = 4, SLEEP = 250;
 
         // Create the service handler and limiter
-        final RequestTestTimedHandler handler = new RequestTestTimedHandler();
-        handler.sleep = SLEEP;
-
+        final RequestTestSuccessHandler handler = new RequestTestSuccessHandler(SLEEP);
         final ServiceLimits limits = new ServiceLimits();
         limits.requestThreads = 1;
 
-        try (final Service ignored = new Service(Config.RELAY_PORT, Config.CLUSTER_NAME, handler, limits)) {
+        try (final Service ignored = new Service(TestConfigs.RELAY_PORT, TestConfigs.CLUSTER_NAME, handler, limits)) {
             // Start a batch of requesters
             final LongAdder done = new LongAdder();
             for (int j = 0; j < REQUEST_COUNT; j++) {
                 new Thread(() -> {
                     try {
-                        handler.connection.request(Config.CLUSTER_NAME, new byte[]{0x00}, (REQUEST_COUNT + 1) * SLEEP);
+                        handler.connection.request(TestConfigs.CLUSTER_NAME, new byte[]{0x00}, (REQUEST_COUNT + 1) * SLEEP);
                     } catch (Exception e) {
                         e.printStackTrace();
                     } finally {
@@ -232,43 +208,22 @@ public class RequestTest extends AbstractBenchmark {
     @BenchmarkOptions(benchmarkRounds = 5, warmupRounds = 10)
     @Test public void memoryLimiting() throws Exception {
         // Create the service handler and limiter
-        final RequestTestHandler handler = new RequestTestHandler();
+        final RequestTestSuccessHandler handler = new RequestTestSuccessHandler(0);
         final ServiceLimits limits = new ServiceLimits();
         limits.requestMemory = 1;
 
-        try (final Service ignored = new Service(Config.RELAY_PORT, Config.CLUSTER_NAME, handler, limits)) {
+        try (final Service ignored = new Service(TestConfigs.RELAY_PORT, TestConfigs.CLUSTER_NAME, handler, limits)) {
             // Check that a 1 byte request succeeds
-            handler.connection.request(Config.CLUSTER_NAME, new byte[]{0x00}, 1000);
+            handler.connection.request(TestConfigs.CLUSTER_NAME, new byte[]{0x00}, 1000);
 
             // Check that a 2 byte request fails
             try {
-                handler.connection.request(Config.CLUSTER_NAME, new byte[]{0x00, 0x00}, 1000);
+                handler.connection.request(TestConfigs.CLUSTER_NAME, new byte[]{0x00, 0x00}, 1000);
                 Assert.fail();
             } catch (TimeoutException ignore) { }
 
             // Check that space freed gets replenished
-            handler.connection.request(Config.CLUSTER_NAME, new byte[]{0x00}, 1000);
-        }
-    }
-
-    // Service handler for the request/reply expiry tests.
-    static class RequestTestExpiryHandler implements ServiceHandler {
-        Connection connection;
-        int        sleep;
-        AtomicInteger done = new AtomicInteger(0);
-
-        @Override public void init(final Connection connection) {
-            this.connection = connection;
-        }
-
-        @Override public byte[] handleRequest(final byte[] request) {
-            try {
-                Thread.sleep(sleep);
-                done.addAndGet(1);
-                return request;
-            } catch (InterruptedException e) {
-                throw new IllegalStateException(e);
-            }
+            handler.connection.request(TestConfigs.CLUSTER_NAME, new byte[]{0x00}, 1000);
         }
     }
 
@@ -279,19 +234,17 @@ public class RequestTest extends AbstractBenchmark {
         final int REQUEST_COUNT = 4, SLEEP = 25;
 
         // Create the service handler and limiter
-        final RequestTestExpiryHandler handler = new RequestTestExpiryHandler();
-        handler.sleep = SLEEP;
-
+        final RequestTestSuccessHandler handler = new RequestTestSuccessHandler(SLEEP);
         final ServiceLimits limits = new ServiceLimits();
         limits.requestThreads = 1;
 
-        try (final Service ignored = new Service(Config.RELAY_PORT, Config.CLUSTER_NAME, handler, limits)) {
+        try (final Service ignored = new Service(TestConfigs.RELAY_PORT, TestConfigs.CLUSTER_NAME, handler, limits)) {
             // Start a batch of concurrent requesters (all but one should be scheduled remotely)
             final Collection<Thread> workers = new ArrayList<>(REQUEST_COUNT);
             for (int i = 0; i < REQUEST_COUNT; i++) {
                 final Thread worker = new Thread(() -> {
                     try {
-                        handler.connection.request(Config.CLUSTER_NAME, new byte[]{0x00}, 10);
+                        handler.connection.request(TestConfigs.CLUSTER_NAME, new byte[]{0x00}, 10);
                     } catch (TimeoutException ignore) {
                         // All ok
                     } catch (IOException | RemoteException | InterruptedException e) {

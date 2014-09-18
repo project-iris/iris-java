@@ -7,7 +7,6 @@ package com.karalabe.iris;
 
 import com.carrotsearch.junitbenchmarks.AbstractBenchmark;
 import com.carrotsearch.junitbenchmarks.BenchmarkOptions;
-import org.jetbrains.annotations.NotNull;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -17,21 +16,25 @@ import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 
-@SuppressWarnings("JUnitTestNG")
+@SuppressWarnings({"JUnitTestNG", "ProhibitedExceptionDeclared"})
 public class BroadcastTest extends AbstractBenchmark {
     // Service handler for the broadcast tests.
-    static class BroadcastTestHandler implements ServiceHandler {
+    static class BroadcastTestHandler extends BaseServiceHandler {
         final Set<String> arrived = Collections.synchronizedSet(new HashSet<>());
-        Connection connection;
-        Semaphore  pending;
+        final Semaphore   pending = new Semaphore(0);
+        final int sleep;
 
-        @Override public void init(@NotNull final Connection connection) {
-            this.connection = connection;
-        }
+        BroadcastTestHandler(final int sleep) { this.sleep = sleep; }
 
-        @Override public void handleBroadcast(@NotNull final byte[] message) {
+        @Override public void handleBroadcast(final byte[] message) {
+            // Simulate some processing time
+            try {
+                Thread.sleep(sleep);
+            } catch (InterruptedException ignore) { }
+
+            // Store the arrived broadcast and signal its arrival
             arrived.add(new String(message, StandardCharsets.UTF_8));
-            pending.release(1);
+            pending.release();
         }
     }
 
@@ -48,19 +51,19 @@ public class BroadcastTest extends AbstractBenchmark {
         for (int i = 0; i < CLIENT_COUNT; i++) {
             final int client = i;
             final Thread worker = new Thread(() -> {
-                try (final Connection conn = new Connection(Config.RELAY_PORT)) {
+                try (final Connection conn = new Connection(TestConfigs.RELAY_PORT)) {
                     // Wait till all clients and servers connect
-                    barrier.await(Config.PHASE_TIMEOUT, TimeUnit.SECONDS);
+                    barrier.await(TestConfigs.PHASE_TIMEOUT, TimeUnit.SECONDS);
 
                     // Send all the client broadcasts
                     for (int j = 0; j < MESSAGE_COUNT; j++) {
                         final String message = String.format("client #%d, broadcast %d", client, j);
                         final byte[] messageBlob = message.getBytes(StandardCharsets.UTF_8);
 
-                        conn.broadcast(Config.CLUSTER_NAME, messageBlob);
+                        conn.broadcast(TestConfigs.CLUSTER_NAME, messageBlob);
                     }
-                    barrier.await(Config.PHASE_TIMEOUT, TimeUnit.SECONDS);
-                    barrier.await(Config.PHASE_TIMEOUT, TimeUnit.SECONDS);
+                    barrier.await(TestConfigs.PHASE_TIMEOUT, TimeUnit.SECONDS);
+                    barrier.await(TestConfigs.PHASE_TIMEOUT, TimeUnit.SECONDS);
                 } catch (Exception e) {
                     errors.add(e);
                 }
@@ -72,23 +75,20 @@ public class BroadcastTest extends AbstractBenchmark {
         for (int i = 0; i < SERVER_COUNT; i++) {
             final int server = i;
             final Thread worker = new Thread(() -> {
-                final BroadcastTestHandler handler = new BroadcastTestHandler();
+                final BroadcastTestHandler handler = new BroadcastTestHandler(0);
 
-                try (final Service ignored = new Service(Config.RELAY_PORT, Config.CLUSTER_NAME, handler)) {
-                    handler.pending = new Semaphore((CLIENT_COUNT + SERVER_COUNT) * MESSAGE_COUNT);
-                    handler.pending.acquire((CLIENT_COUNT + SERVER_COUNT) * MESSAGE_COUNT);
-
+                try (final Service ignored = new Service(TestConfigs.RELAY_PORT, TestConfigs.CLUSTER_NAME, handler)) {
                     // Wait till all clients and servers connect
-                    barrier.await(Config.PHASE_TIMEOUT, TimeUnit.SECONDS);
+                    barrier.await(TestConfigs.PHASE_TIMEOUT, TimeUnit.SECONDS);
 
                     // Send all the service broadcasts
                     for (int j = 0; j < MESSAGE_COUNT; j++) {
                         final String message = String.format("server #%d, broadcast %d", server, j);
                         final byte[] messageBlob = message.getBytes(StandardCharsets.UTF_8);
 
-                        handler.connection.broadcast(Config.CLUSTER_NAME, messageBlob);
+                        handler.connection.broadcast(TestConfigs.CLUSTER_NAME, messageBlob);
                     }
-                    barrier.await(Config.PHASE_TIMEOUT, TimeUnit.SECONDS);
+                    barrier.await(TestConfigs.PHASE_TIMEOUT, TimeUnit.SECONDS);
 
                     // Wait for all broadcasts to arrive
                     handler.pending.acquire((CLIENT_COUNT + SERVER_COUNT) * MESSAGE_COUNT);
@@ -105,7 +105,7 @@ public class BroadcastTest extends AbstractBenchmark {
                             Assert.assertTrue(handler.arrived.contains(message));
                         }
                     }
-                    barrier.await(Config.PHASE_TIMEOUT, TimeUnit.SECONDS);
+                    barrier.await(TestConfigs.PHASE_TIMEOUT, TimeUnit.SECONDS);
                 } catch (Exception e) {
                     errors.add(e);
                 }
@@ -115,36 +115,18 @@ public class BroadcastTest extends AbstractBenchmark {
         }
         // Schedule the parallel operations
         try {
-            barrier.await(Config.PHASE_TIMEOUT, TimeUnit.SECONDS);
+            barrier.await(TestConfigs.PHASE_TIMEOUT, TimeUnit.SECONDS);
             Assert.assertTrue(errors.isEmpty());
 
-            barrier.await(Config.PHASE_TIMEOUT, TimeUnit.SECONDS);
+            barrier.await(TestConfigs.PHASE_TIMEOUT, TimeUnit.SECONDS);
             Assert.assertTrue(errors.isEmpty());
 
-            barrier.await(Config.PHASE_TIMEOUT, TimeUnit.SECONDS);
+            barrier.await(TestConfigs.PHASE_TIMEOUT, TimeUnit.SECONDS);
             Assert.assertTrue(errors.isEmpty());
         } finally {
             for (Thread worker : workers) {
                 worker.join();
             }
-        }
-    }
-
-    // Service handler for the thread limited broadcast tests.
-    static class BroadcastLimitTestHandler implements ServiceHandler {
-        final Set<String> arrived = Collections.synchronizedSet(new HashSet<>());
-        Connection connection;
-        int        sleep;
-
-        @Override public void init(@NotNull final Connection connection) {
-            this.connection = connection;
-        }
-
-        @Override public void handleBroadcast(@NotNull final byte[] message) {
-            try {
-                Thread.sleep(sleep);
-                arrived.add(new String(message, StandardCharsets.UTF_8));
-            } catch (InterruptedException ignored) { }
         }
     }
 
@@ -154,16 +136,14 @@ public class BroadcastTest extends AbstractBenchmark {
         final int MESSAGE_COUNT = 4, SLEEP = 100;
 
         // Create the service handler and limiter
-        final BroadcastLimitTestHandler handler = new BroadcastLimitTestHandler();
-        handler.sleep = SLEEP;
-
+        final BroadcastTestHandler handler = new BroadcastTestHandler(SLEEP);
         final ServiceLimits limits = new ServiceLimits();
         limits.broadcastThreads = 1;
 
-        try (final Service ignored = new Service(Config.RELAY_PORT, Config.CLUSTER_NAME, handler, limits)) {
+        try (final Service ignored = new Service(TestConfigs.RELAY_PORT, TestConfigs.CLUSTER_NAME, handler, limits)) {
             // Send a few broadcasts
             for (int j = 0; j < MESSAGE_COUNT; j++) {
-                handler.connection.broadcast(Config.CLUSTER_NAME, new byte[]{(byte) j});
+                handler.connection.broadcast(TestConfigs.CLUSTER_NAME, new byte[]{(byte) j});
             }
             // Wait for half time and verify that only half was processed
             Thread.sleep(((MESSAGE_COUNT / 2) * SLEEP) + (SLEEP / 2));
@@ -175,24 +155,21 @@ public class BroadcastTest extends AbstractBenchmark {
     @BenchmarkOptions(benchmarkRounds = 5, warmupRounds = 10)
     @Test public void memoryLimiting() throws Exception {
         // Create the service handler and limiter
-        final BroadcastTestHandler handler = new BroadcastTestHandler();
-        handler.pending = new Semaphore(2);
-        handler.pending.acquire(2);
-
+        final BroadcastTestHandler handler = new BroadcastTestHandler(0);
         final ServiceLimits limits = new ServiceLimits();
         limits.broadcastMemory = 1;
 
-        try (final Service ignored = new Service(Config.RELAY_PORT, Config.CLUSTER_NAME, handler, limits)) {
+        try (final Service ignored = new Service(TestConfigs.RELAY_PORT, TestConfigs.CLUSTER_NAME, handler, limits)) {
             // Check that a 1 byte broadcast passes
-            handler.connection.broadcast(Config.CLUSTER_NAME, new byte[]{0x00});
+            handler.connection.broadcast(TestConfigs.CLUSTER_NAME, new byte[]{0x00});
             Assert.assertTrue(handler.pending.tryAcquire(100, TimeUnit.MILLISECONDS));
 
             // Check that a 2 byte broadcast is dropped
-            handler.connection.broadcast(Config.CLUSTER_NAME, new byte[]{0x00, 0x00});
+            handler.connection.broadcast(TestConfigs.CLUSTER_NAME, new byte[]{0x00, 0x00});
             Assert.assertFalse(handler.pending.tryAcquire(100, TimeUnit.MILLISECONDS));
 
             // Check that space freed gets replenished
-            handler.connection.broadcast(Config.CLUSTER_NAME, new byte[]{0x00});
+            handler.connection.broadcast(TestConfigs.CLUSTER_NAME, new byte[]{0x00});
             Assert.assertTrue(handler.pending.tryAcquire(100, TimeUnit.MILLISECONDS));
         }
     }

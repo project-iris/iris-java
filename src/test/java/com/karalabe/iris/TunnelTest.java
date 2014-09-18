@@ -8,7 +8,6 @@ package com.karalabe.iris;
 import com.carrotsearch.junitbenchmarks.AbstractBenchmark;
 import com.carrotsearch.junitbenchmarks.BenchmarkOptions;
 import com.karalabe.iris.exceptions.TimeoutException;
-import org.jetbrains.annotations.NotNull;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -21,17 +20,11 @@ import java.util.List;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.TimeUnit;
 
-@SuppressWarnings("JUnitTestNG")
+@SuppressWarnings({"JUnitTestNG", "ProhibitedExceptionDeclared"})
 public class TunnelTest extends AbstractBenchmark {
     // Service handler for the tunnel tests.
-    static class TunnelTestHandler implements ServiceHandler {
-        Connection connection;
-
-        @Override public void init(@NotNull final Connection connection) {
-            this.connection = connection;
-        }
-
-        @Override public void handleTunnel(@NotNull final Tunnel tunnel) {
+    static class TunnelTestHandler extends BaseServiceHandler {
+        @Override public void handleTunnel(final Tunnel tunnel) {
             try {
                 while (true) {
                     tunnel.send(tunnel.receive());
@@ -61,14 +54,14 @@ public class TunnelTest extends AbstractBenchmark {
         for (int i = 0; i < CLIENT_COUNT; i++) {
             final int client = i;
             final Thread worker = new Thread(() -> {
-                try (final Connection conn = new Connection(Config.RELAY_PORT)) {
+                try (final Connection conn = new Connection(TestConfigs.RELAY_PORT)) {
                     // Wait till all clients and servers connect
-                    barrier.await(Config.PHASE_TIMEOUT, TimeUnit.SECONDS);
+                    barrier.await(TestConfigs.PHASE_TIMEOUT, TimeUnit.SECONDS);
 
                     // Execute the tunnel construction, message exchange and verification
                     final String id = String.format("client #%d", client);
                     buildExchangeVerify(id, conn, TUNNEL_COUNT, EXCHANGE_COUNT);
-                    barrier.await(Config.PHASE_TIMEOUT, TimeUnit.SECONDS);
+                    barrier.await(TestConfigs.PHASE_TIMEOUT, TimeUnit.SECONDS);
                 } catch (Exception e) {
                     errors.add(e);
                 }
@@ -83,14 +76,14 @@ public class TunnelTest extends AbstractBenchmark {
             final Thread worker = new Thread(() -> {
                 final TunnelTestHandler handler = new TunnelTestHandler();
 
-                try (final Service ignored = new Service(Config.RELAY_PORT, Config.CLUSTER_NAME, handler)) {
+                try (final Service ignored = new Service(TestConfigs.RELAY_PORT, TestConfigs.CLUSTER_NAME, handler)) {
                     // Wait till all clients and servers connect
-                    barrier.await(Config.PHASE_TIMEOUT, TimeUnit.SECONDS);
+                    barrier.await(TestConfigs.PHASE_TIMEOUT, TimeUnit.SECONDS);
 
                     // Execute the tunnel construction, message exchange and verification
                     final String id = String.format("server #%d", server);
                     buildExchangeVerify(id, handler.connection, TUNNEL_COUNT, EXCHANGE_COUNT);
-                    barrier.await(Config.PHASE_TIMEOUT, TimeUnit.SECONDS);
+                    barrier.await(TestConfigs.PHASE_TIMEOUT, TimeUnit.SECONDS);
                 } catch (Exception e) {
                     errors.add(e);
                 }
@@ -100,10 +93,10 @@ public class TunnelTest extends AbstractBenchmark {
         }
         // Schedule the parallel operations
         try {
-            barrier.await(Config.PHASE_TIMEOUT, TimeUnit.SECONDS);
+            barrier.await(TestConfigs.PHASE_TIMEOUT, TimeUnit.SECONDS);
             Assert.assertTrue(errors.isEmpty());
 
-            barrier.await(Config.PHASE_TIMEOUT, TimeUnit.SECONDS);
+            barrier.await(TestConfigs.PHASE_TIMEOUT, TimeUnit.SECONDS);
             Assert.assertTrue(errors.isEmpty());
         } finally {
             for (Thread worker : workers) {
@@ -119,10 +112,10 @@ public class TunnelTest extends AbstractBenchmark {
         final List<Exception> errors = Collections.synchronizedList(new ArrayList<>());
 
         for (int i = 0; i < tunnels; i++) {
-            int tunnelId = i;
+            final int tunnelId = i;
             final Thread worker = new Thread(() -> {
                 // Open a tunnel to the service cluster
-                try (final Tunnel tunnel = conn.tunnel(Config.CLUSTER_NAME, 1000)) {
+                try (final Tunnel tunnel = conn.tunnel(TestConfigs.CLUSTER_NAME, 1000)) {
                     // Serialize a batch of messages
                     for (int j = 0; j < exchanges; j++) {
                         final String message = String.format("%s, tunnel #%d, message #%d", id, tunnelId, j);
@@ -139,7 +132,7 @@ public class TunnelTest extends AbstractBenchmark {
                         Assert.assertEquals(original, message);
                     }
                     // Wait till all tunnels complete the transfers
-                    barrier.await(Config.PHASE_TIMEOUT, TimeUnit.SECONDS);
+                    barrier.await(TestConfigs.PHASE_TIMEOUT, TimeUnit.SECONDS);
                 } catch (Exception e) {
                     errors.add(e);
                 }
@@ -149,7 +142,7 @@ public class TunnelTest extends AbstractBenchmark {
         }
         // Schedule the parallel operations
         try {
-            barrier.await(Config.PHASE_TIMEOUT, TimeUnit.SECONDS);
+            barrier.await(TestConfigs.PHASE_TIMEOUT, TimeUnit.SECONDS);
             Assert.assertTrue(errors.isEmpty());
         } finally {
             for (Thread worker : workers) {
@@ -161,9 +154,9 @@ public class TunnelTest extends AbstractBenchmark {
     // Tests that unanswered tunnels timeout correctly.
     @BenchmarkOptions(benchmarkRounds = 5, warmupRounds = 10)
     @Test public void timeout() throws Exception {
-        try (final Connection conn = new Connection(Config.RELAY_PORT)) {
+        try (final Connection conn = new Connection(TestConfigs.RELAY_PORT)) {
             // Open a new tunnel to a non existent server
-            try (final Tunnel tunnel = conn.tunnel(Config.CLUSTER_NAME, 100)) {
+            try (final Tunnel tunnel = conn.tunnel(TestConfigs.CLUSTER_NAME, 100)) {
                 Assert.fail("Mismatching tunneling result: have: success, want TimeoutException");
             } catch (TimeoutException ignored) {
                 // All ok
@@ -178,9 +171,9 @@ public class TunnelTest extends AbstractBenchmark {
         final TunnelTestHandler handler = new TunnelTestHandler();
 
         // Register a new service to the relay
-        try (final Service ignored = new Service(Config.RELAY_PORT, Config.CLUSTER_NAME, handler)) {
+        try (final Service ignored = new Service(TestConfigs.RELAY_PORT, TestConfigs.CLUSTER_NAME, handler)) {
             // Construct the tunnel
-            try (final Tunnel tunnel = handler.connection.tunnel(Config.CLUSTER_NAME, 1000)) {
+            try (final Tunnel tunnel = handler.connection.tunnel(TestConfigs.CLUSTER_NAME, 1000)) {
                 // Create and transfer a huge message
                 final byte[] blob = new byte[16 * 1024 * 1024];
                 for (int i = 0; i < blob.length; i++) {
@@ -202,9 +195,9 @@ public class TunnelTest extends AbstractBenchmark {
         final TunnelTestHandler handler = new TunnelTestHandler();
 
         // Register a new service to the relay
-        try (final Service ignored = new Service(Config.RELAY_PORT, Config.CLUSTER_NAME, handler)) {
+        try (final Service ignored = new Service(TestConfigs.RELAY_PORT, TestConfigs.CLUSTER_NAME, handler)) {
             // Construct the tunnel
-            try (final Tunnel tunnel = handler.connection.tunnel(Config.CLUSTER_NAME, 1000)) {
+            try (final Tunnel tunnel = handler.connection.tunnel(TestConfigs.CLUSTER_NAME, 1000)) {
                 // Overload the tunnel by partially transferring huge messages
                 final byte[] blob = new byte[64 * 1024 * 1024];
                 for (int i = 0; i < 10; i++) {

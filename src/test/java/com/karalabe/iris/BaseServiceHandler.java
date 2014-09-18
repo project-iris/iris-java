@@ -5,9 +5,11 @@
 // For details please see http://iris.karalabe.com/downloads#License
 package com.karalabe.iris;
 
-public class Config {
-    public static final int    RELAY_PORT    = 55555;
-    public static final String CLUSTER_NAME  = "java-binding-test-cluster";
-    public static final String TOPIC_NAME    = "java-binding-test-topic";
-    public static final long   PHASE_TIMEOUT = 3;
+// Abstract wrapper around the ServiceHandler interface to store the connection.
+public class BaseServiceHandler implements ServiceHandler {
+    public Connection connection;
+
+    @Override public void init(final Connection connection) {
+        this.connection = connection;
+    }
 }
