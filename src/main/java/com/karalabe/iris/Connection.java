@@ -233,4 +233,12 @@ public class Connection implements AutoCloseable {
             broadcaster.close();
         } catch (InterruptedException ignored) {}
     }
+
+    /**
+     * Retrieves the contextual logger associated with the connection.
+     * @return Logger through which context can be manipulated.
+     */
+    public ContextualLogger logger() {
+        return logger;
+    }
 }

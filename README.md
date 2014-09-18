@@ -149,10 +149,69 @@ public class TopicLimits {
     public int eventThreads = 4 * Runtime.getRuntime().availableProcessors();
     public int eventMemory  = 64 * 1024 * 1024;
 }
-
 ```
 
 There is also a sanity limit on the input buffer of a tunnel, but it is not exposed through the API as tunnels are meant as structural primitives, not sensitive to load. This may change in the future.
+
+### Logging
+
+For logging purposes, the Java binding uses the [Simple Logging Facade for Java](http://www.slf4j.org/) (version1.7.7). This library is only an abstract façade defining the API, underneath which every developer can place her own preferred logger framework. For demonstrative purposes, we present the use with the [LOGBack](http://logback.qos.ch/) project, but others are analogous.
+
+The suggested configuration is to collect _INFO_ level logs and print them to _stdout_. This level allows tracking life-cycle events such as client and service attachments, topic subscriptions and tunnel establishments. Further log entries can be requested by lowering the level to _DEBUG_, effectively printing all messages passing through the binding.
+
+```xml
+<configuration>
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{HH:mm:ss.SSS} %-5level %-40msg %mdc%n</pattern>
+        </encoder>
+    </appender>
+
+    <root level="INFO">
+        <appender-ref ref="STDOUT"/>
+    </root>
+</configuration>
+```
+
+Note, that Iris attaches quite a lot of contextual attributes (Mapped Diagnostic Context) to each log entry, enabling detailed tracking of events. These are printed - as can be seen above - with the help of the `%mdc` field in the log output pattern. Additionally, these MDCs are automatically injected into the logger context whenever a callback method of the [`ServiceHandler`](http://iris.karalabe.com/docs/iris-java.v1/com/karalabe/iris/ServiceHandler.html) or [`TopicHandler`](http://iris.karalabe.com/docs/iris-java.v1/com/karalabe/iris/TopicHandler.html) is invoked.
+
+```java
+@Override public byte[] handleRequest(byte[] request) throws RemoteException {
+    LoggerFactory.getLogger("My Logger").info("My info log entry");
+    //...
+}
+```
+
+```
+11:48:49.504 INFO  My info log entry                        remote_request=0, service=1
+```
+
+In certain cases, it might be desirable to have access to contextual attributes outside the callback functions (e.g. in the case of a simple client connection, there are no callbacks). For such scenarios, context injection can be specifically requested through an embedded logger (just don't forget to unload afterwards).
+
+```java
+try (final Connection conn = new Connection(55555)) {
+    final Logger logger = LoggerFactory.getLogger("My Logger");
+
+    conn.logger().loadContext();
+    logger.debug("Debug entry, hidden by default");
+    logger.info("Info entry, client context included");
+    logger.warn("Warning entry");
+    logger.error("Critical entry");
+    conn.logger().unloadContext();
+}
+```
+
+As you can see below, all log entries have been automatically tagged with the `client` attribute, set to the id of the current connection. Since the default log level is _INFO_, the `logger.debug` invocation has no effect. Additionally, arbitrarily many key-value pairs may be included in the entry using the [SLF4J MDC API](http://www.slf4j.org/api/org/slf4j/MDC.html).
+
+```
+12:20:14.654 INFO  Connecting new client                    client=1, relay_port=55555
+12:20:14.691 INFO  Client connection established            client=1
+12:20:14.692 INFO  Info entry, client context included      client=1
+12:20:14.692 WARN  Warning entry                            client=1
+12:20:14.692 ERROR Critical entry                           client=1
+12:20:14.692 INFO  Detaching from relay                     client=1
+12:20:14.692 INFO  Successfully detached                    client=1
+```
 
 ### Additional goodies
 
