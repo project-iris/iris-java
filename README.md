@@ -1,6 +1,3 @@
-  Work in progress!
-=====================
-
   Iris Java binding
 ===================
 
@@ -22,11 +19,11 @@ There is a growing community on Twitter [@iriscmf](https://twitter.com/iriscmf),
   Installation
 ----------------
 
-To get the package, add the following Maven dependency ([details](http://search.maven.org/#artifactdetails%7Ccom.karalabe.iris%7Ciris%7C1.0.0-preview-4%7Cjar) for various build systems):
+To get the package, add the following Maven dependency ([details](http://search.maven.org/#artifactdetails%7Ccom.karalabe.iris%7Ciris%7C1.0.0-preview-5%7Cjar) for various build systems):
 
  - Group ID: com.karalabe.iris
  - Artifact ID: iris
- - Version: 1.0.0-preview-4
+ - Version: 1.0.0-preview-5
 
 To import this package, add the following line to your code:
 

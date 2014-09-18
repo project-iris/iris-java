@@ -101,3 +101,6 @@ uploadArchives {
         }
     }
 }
+
+// Don't require remembering the tasks, just run the publishing
+defaultTasks 'clean', 'uploadArchives'
