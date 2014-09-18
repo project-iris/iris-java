@@ -367,7 +367,6 @@ public class TunnelScheme {
                     } else {
                         logger.info("Tunnel closed gracefully");
                     }
-
                     exitStatus = reason;
                     exitLock.notifyAll();
                 } finally {

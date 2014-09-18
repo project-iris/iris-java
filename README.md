@@ -133,7 +133,7 @@ Lastly, if during the initialization of a registered service - while the [`init`
 
 To prevent the network from overwhelming an attached process, the binding places thread and memory limits on the broadcasts/requests inbound to a registered service as well as on the events received by a topic subscription. The thread limit defines the concurrent processing allowance, whereas the memory limit the maximal length of the pending queue.
 
-The default values - listed below - can be overridden during service registration and topic subscription via [`ServiceLimits`](http://iris.karalabe.com/docs/iris-java.v1/com/karalabe/iris/ServiceLimits.html) and [`iris.TopicLimits`](http://iris.karalabe.com/docs/iris-java.v1/com/karalabe/iris/TopicLimits.html). Any unset fields will default to the preset ones.
+The default values - listed below - can be overridden during service registration and topic subscription via [`ServiceLimits`](http://iris.karalabe.com/docs/iris-java.v1/com/karalabe/iris/ServiceLimits.html) and [`TopicLimits`](http://iris.karalabe.com/docs/iris-java.v1/com/karalabe/iris/TopicLimits.html). Any unset fields will default to the preset ones.
 
 ```java
 // Default limits of the threading and memory usage of a registered service.

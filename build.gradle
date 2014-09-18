@@ -34,3 +34,8 @@ test {
         events "passed", "skipped", "failed"
     }
 }
+
+// Configure the path to the library overview documentation
+javadoc {
+    options.overview = "src/main/overview.html"
+}
