@@ -5,6 +5,7 @@
 // For details please see http://iris.karalabe.com/downloads#License
 package com.karalabe.iris;
 
+import com.karalabe.iris.exceptions.ClosedException;
 import com.karalabe.iris.exceptions.InitializationException;
 import org.openjdk.jmh.annotations.*;
 
@@ -38,7 +39,7 @@ public class PublishThroughputBenchmark {
     private ArrayList<Callable<Integer>> tasks   = null;
 
     // Initializes the benchmark.
-    @Setup(Level.Iteration) public void init() throws InterruptedException, IOException, InitializationException {
+    @Setup(Level.Iteration) public void init() throws InterruptedException, IOException, InitializationException, ClosedException {
         // Connect to the relay and subscribe to a topic
         handler = new BenchmarkHandler();
         handler.pending = new Semaphore(0);
@@ -59,7 +60,7 @@ public class PublishThroughputBenchmark {
     }
 
     // Terminates the workers, unsubscribes and closes the connection.
-    @TearDown(Level.Iteration) public void close() throws IOException, InterruptedException {
+    @TearDown(Level.Iteration) public void close() throws IOException, InterruptedException, ClosedException {
         workers.shutdown();
         connection.unsubscribe(BenchmarkConfigs.TOPIC_NAME);
         connection.close();

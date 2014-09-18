@@ -5,6 +5,7 @@
 // For details please see http://iris.karalabe.com/downloads#License
 package com.karalabe.iris;
 
+import com.karalabe.iris.exceptions.ClosedException;
 import com.karalabe.iris.exceptions.InitializationException;
 import org.openjdk.jmh.annotations.*;
 
@@ -44,7 +45,7 @@ public class BroadcastLatencyBenchmark {
     }
 
     // Benchmarks broadcasting a single message.
-    @Benchmark public void timeLatency() throws InterruptedException, IOException {
+    @Benchmark public void timeLatency() throws InterruptedException, IOException, ClosedException {
         handler.connection.broadcast(BenchmarkConfigs.CLUSTER_NAME, new byte[]{0x00});
         handler.pending.acquire();
     }

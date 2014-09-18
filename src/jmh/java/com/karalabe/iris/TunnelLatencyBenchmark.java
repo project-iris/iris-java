@@ -5,6 +5,7 @@
 // For details please see http://iris.karalabe.com/downloads#License
 package com.karalabe.iris;
 
+import com.karalabe.iris.exceptions.ClosedException;
 import com.karalabe.iris.exceptions.InitializationException;
 import com.karalabe.iris.exceptions.TimeoutException;
 import org.openjdk.jmh.annotations.*;
@@ -29,7 +30,7 @@ public class TunnelLatencyBenchmark {
                     tunnel.receive();
                     pending.release();
                 }
-            } catch (IOException | InterruptedException ignored) {
+            } catch (IOException | ClosedException ignored) {
                 // Tunnel was torn down, clean up
             } finally {
                 try {
@@ -61,7 +62,7 @@ public class TunnelLatencyBenchmark {
     }
 
     // Benchmarks the latency of the tunnel data transfer.
-    @Benchmark public void timeLatency() throws InterruptedException, IOException {
+    @Benchmark public void timeLatency() throws ClosedException, IOException, InterruptedException {
         tunnel.send(new byte[]{0x00});
         handler.pending.acquire();
     }

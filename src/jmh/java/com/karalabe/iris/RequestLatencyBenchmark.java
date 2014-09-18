@@ -5,6 +5,7 @@
 // For details please see http://iris.karalabe.com/downloads#License
 package com.karalabe.iris;
 
+import com.karalabe.iris.exceptions.ClosedException;
 import com.karalabe.iris.exceptions.InitializationException;
 import com.karalabe.iris.exceptions.RemoteException;
 import com.karalabe.iris.exceptions.TimeoutException;
@@ -42,7 +43,7 @@ public class RequestLatencyBenchmark {
     }
 
     // Benchmarks the latency of a single request/reply operation.
-    @Benchmark public void timeLatency() throws InterruptedException, IOException, TimeoutException, RemoteException {
+    @Benchmark public void timeLatency() throws InterruptedException, IOException, TimeoutException, RemoteException, ClosedException {
         handler.connection.request(BenchmarkConfigs.CLUSTER_NAME, new byte[]{0x00}, 1000);
     }
 }

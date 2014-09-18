@@ -5,6 +5,7 @@
 // For details please see http://iris.karalabe.com/downloads#License
 package com.karalabe.iris;
 
+import com.karalabe.iris.exceptions.ClosedException;
 import com.karalabe.iris.exceptions.InitializationException;
 import org.openjdk.jmh.annotations.*;
 
@@ -26,7 +27,7 @@ public class PublishLatencyBenchmark {
     private BenchmarkHandler handler    = null;
 
     // Connects to the relay and subscribes to a topic.
-    @Setup(Level.Iteration) public void init() throws InterruptedException, IOException, InitializationException {
+    @Setup(Level.Iteration) public void init() throws InterruptedException, IOException, InitializationException, ClosedException {
         handler = new BenchmarkHandler();
         handler.pending = new Semaphore(0);
 
@@ -36,14 +37,14 @@ public class PublishLatencyBenchmark {
     }
 
     // Unsubscribes from the topic and closes the connection.
-    @TearDown(Level.Iteration) public void close() throws IOException, InterruptedException {
+    @TearDown(Level.Iteration) public void close() throws IOException, InterruptedException, ClosedException {
         connection.unsubscribe(BenchmarkConfigs.TOPIC_NAME);
         connection.close();
         Thread.sleep(100);
     }
 
     // Benchmarks publishing a single message.
-    @Benchmark public void timeLatency() throws InterruptedException, IOException {
+    @Benchmark public void timeLatency() throws InterruptedException, IOException, ClosedException {
         connection.publish(BenchmarkConfigs.TOPIC_NAME, new byte[]{0x00});
         handler.pending.acquire();
     }
