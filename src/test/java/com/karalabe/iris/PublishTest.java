@@ -247,10 +247,6 @@ public class PublishTest extends AbstractBenchmark {
     @Test public void terminate() throws Exception {
         // Connect with a client and check that the pub/sub calls work
         final Connection conn = new Connection(TestConfigs.RELAY_PORT);
-        conn.subscribe(TestConfigs.TOPIC_NAME, new PublishTestTopicHandler(0));
-        Thread.sleep(100); // TODO: Work around Iris issue https://github.com/project-iris/iris/issues/50
-        conn.unsubscribe(TestConfigs.TOPIC_NAME);
-        conn.publish(TestConfigs.TOPIC_NAME, new byte[]{0x00});
         conn.close();
 
         // Verify that the call invocations now fail

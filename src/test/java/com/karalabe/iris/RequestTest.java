@@ -270,7 +270,7 @@ public class RequestTest extends AbstractBenchmark {
     @BenchmarkOptions(benchmarkRounds = 5, warmupRounds = 10)
     @Test public void terminate() throws Exception {
         // Test specific configurations
-        final int SLEEP = 500;
+        final int SLEEP = 250;
 
         // Create the service handler and register it
         final RequestTestSuccessHandler handler = new RequestTestSuccessHandler(SLEEP);
@@ -284,7 +284,6 @@ public class RequestTest extends AbstractBenchmark {
                 try {
                     conn.request(TestConfigs.CLUSTER_NAME, new byte[]{0x00}, 1000);
                 } catch (IOException | RemoteException | TimeoutException ignore) {
-                    ignore.printStackTrace();
                     // Not what we expected, time out
                 } catch (ClosedException ignore) {
                     done.release();
@@ -296,7 +295,7 @@ public class RequestTest extends AbstractBenchmark {
             conn.close();
 
             // Verify the request interruption and failure to schedule new
-            Assert.assertTrue(done.tryAcquire(1, TimeUnit.SECONDS));
+            Assert.assertTrue(done.tryAcquire(SLEEP, TimeUnit.MILLISECONDS));
             try {
                 conn.request(TestConfigs.CLUSTER_NAME, new byte[]{0x00}, 1000);
                 Assert.fail("Request succeeded on closed connection");

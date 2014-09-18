@@ -8,6 +8,7 @@ package com.karalabe.iris.schemes;
 import com.karalabe.iris.ServiceHandler;
 import com.karalabe.iris.Tunnel;
 import com.karalabe.iris.common.ContextualLogger;
+import com.karalabe.iris.exceptions.ClosedException;
 import com.karalabe.iris.exceptions.TimeoutException;
 import com.karalabe.iris.protocol.RelayProtocol;
 
@@ -20,6 +21,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 
@@ -177,8 +179,8 @@ public class TunnelScheme {
 
     // Bridge between the scheme implementation and an API tunnel instance.
     public class TunnelBridge {
-        private final long             id;       // Tunnel identifier for de/multiplexing
-        private final ContextualLogger logger;  // Logger with connection and tunnel id injected
+        private final long             id;     // Tunnel identifier for de/multiplexing
+        private final ContextualLogger logger; // Logger with connection and tunnel id injected
 
         // Chunking fields
         private int                   chunkLimit;    // Maximum length of a data payload
@@ -187,13 +189,16 @@ public class TunnelScheme {
 
         // Quality of service fields
         private final Queue<byte[]> itoaBuffer = new LinkedBlockingQueue<>(); // Iris to application message buffer
+        private       Thread        itoaThread = null;                        // Thread currently waiting to receive a message
 
-        private       long   atoiSpace = 0;            // Application to Iris space allowance
-        private final Object atoiLock  = new Object(); // Protects the allowance and doubles as a signaller
+        private       long   atoiSpace  = 0;            // Application to Iris space allowance
+        private final Object atoiLock   = new Object(); // Protects the allowance and doubles as a signaller
+        private       Thread atoiThread = null;         // Thread currently waiting to send a message
 
         // Bookkeeping fields
-        private final Object exitLock   = new Object(); // Tear-down synchronizer
-        private       String exitStatus = null;         // Reason for termination, if not clean exit
+        private final Object        exitLock   = new Object();             // Tear-down synchronizer
+        private       String        exitStatus = null;                     // Reason for termination, if not clean exit
+        private final AtomicBoolean closed     = new AtomicBoolean(false); // Flag specifying if the tunnel was closed
 
         public TunnelBridge(final long id, final int chunking, final ContextualLogger logger) {
             this.id = id;
@@ -222,7 +227,11 @@ public class TunnelScheme {
 
         // Sends a message over the tunnel to the remote pair, blocking until the local
         // Iris node receives the message or the operation times out.
-        public void send(final byte[] message, final long timeout) throws IOException, TimeoutException, InterruptedException {
+        public void send(final byte[] message, final long timeout) throws IOException, TimeoutException, ClosedException {
+            // Ensure the connection hasn't been closed yet
+            if (closed.get()) {
+                throw new ClosedException("Tunnel already closed!");
+            }
             // Calculate the deadline for the operation to finish
             final long deadline = System.nanoTime() + timeout * 10000000;
 
@@ -235,14 +244,21 @@ public class TunnelScheme {
                 // Wait for enough space allowance
                 synchronized (atoiLock) {
                     while (atoiSpace < chunk.length) {
-                        if (timeout == 0) {
-                            atoiLock.wait();
-                        } else {
-                            final long sleep = (deadline - System.nanoTime()) / 10000000;
-                            if (sleep <= 0) {
-                                throw new TimeoutException("");
+                        try {
+                            atoiThread = Thread.currentThread();
+                            if (timeout == 0) {
+                                atoiLock.wait();
+                            } else {
+                                final long sleep = (deadline - System.nanoTime()) / 10000000;
+                                if (sleep <= 0) {
+                                    throw new TimeoutException("");
+                                }
+                                atoiLock.wait(sleep);
                             }
-                            atoiLock.wait(sleep);
+                        } catch (InterruptedException e) {
+                            throw new ClosedException(e);
+                        } finally {
+                            atoiThread = null;
                         }
                     }
                     atoiSpace -= chunk.length;
@@ -253,14 +269,25 @@ public class TunnelScheme {
 
         // Retrieves a message from the tunnel, blocking until one is available or the
         // operation times out.
-        public byte[] receive(final long timeout) throws InterruptedException, TimeoutException {
+        public byte[] receive(final long timeout) throws ClosedException, TimeoutException {
+            // Ensure the connection hasn't been closed yet
+            if (closed.get()) {
+                throw new ClosedException("Tunnel already closed!");
+            }
             synchronized (itoaBuffer) {
                 // Wait for a message to arrive if none is available
                 if (itoaBuffer.isEmpty()) {
-                    if (timeout > 0) {
-                        itoaBuffer.wait(timeout);
-                    } else {
-                        itoaBuffer.wait();
+                    try {
+                        itoaThread = Thread.currentThread();
+                        if (timeout > 0) {
+                            itoaBuffer.wait(timeout);
+                        } else {
+                            itoaBuffer.wait();
+                        }
+                    } catch (InterruptedException e) {
+                        throw new ClosedException(e);
+                    } finally {
+                        itoaThread = null;
                     }
                     if (itoaBuffer.isEmpty()) {
                         throw new TimeoutException("");
@@ -328,6 +355,10 @@ public class TunnelScheme {
 
         // Handles the graceful remote closure of the tunnel.
         public void handleClose(final String reason) {
+            // Make sure all new operations fail
+            closed.set(true);
+
+            // Save the exit reason and log if failure
             synchronized (exitLock) {
                 try {
                     logger.loadContext();
@@ -341,6 +372,17 @@ public class TunnelScheme {
                     exitLock.notifyAll();
                 } finally {
                     logger.unloadContext();
+                }
+            }
+            // Interrupt any pending send and receive
+            synchronized (atoiLock) {
+                if (atoiThread != null) {
+                    atoiThread.interrupt();
+                }
+            }
+            synchronized (itoaBuffer) {
+                if (itoaThread != null) {
+                    itoaThread.interrupt();
                 }
             }
         }

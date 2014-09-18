@@ -180,7 +180,6 @@ public class BroadcastTest extends AbstractBenchmark {
     @Test public void terminate() throws Exception {
         // Connect with a client and check that broadcasting succeeds
         final Connection conn = new Connection(TestConfigs.RELAY_PORT);
-        conn.broadcast(TestConfigs.CLUSTER_NAME, new byte[]{0x00});
         conn.close();
 
         // Verify that broadcasting now fail

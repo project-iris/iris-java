@@ -7,6 +7,7 @@ package com.karalabe.iris;
 
 import com.carrotsearch.junitbenchmarks.AbstractBenchmark;
 import com.carrotsearch.junitbenchmarks.BenchmarkOptions;
+import com.karalabe.iris.exceptions.ClosedException;
 import com.karalabe.iris.exceptions.TimeoutException;
 import org.junit.Assert;
 import org.junit.Test;
@@ -21,7 +22,7 @@ import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.TimeUnit;
 
 @SuppressWarnings({"JUnitTestNG", "ProhibitedExceptionDeclared"})
-public class TunnelTest extends AbstractBenchmark {
+public class TunnelGeneralTest extends AbstractBenchmark {
     // Service handler for the tunnel tests.
     static class TunnelTestHandler extends BaseServiceHandler {
         @Override public void handleTunnel(final Tunnel tunnel) {
@@ -29,7 +30,7 @@ public class TunnelTest extends AbstractBenchmark {
                 while (true) {
                     tunnel.send(tunnel.receive());
                 }
-            } catch (IOException | InterruptedException ignored) {
+            } catch (IOException | ClosedException ignored) {
                 // Tunnel was torn down, clean up
             } finally {
                 try {

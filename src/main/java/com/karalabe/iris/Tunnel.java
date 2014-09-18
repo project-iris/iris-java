@@ -5,6 +5,7 @@
 // For details please see http://iris.karalabe.com/downloads#License
 package com.karalabe.iris;
 
+import com.karalabe.iris.exceptions.ClosedException;
 import com.karalabe.iris.exceptions.TimeoutException;
 import com.karalabe.iris.protocol.Validators;
 import com.karalabe.iris.schemes.TunnelScheme.TunnelBridge;
@@ -29,7 +30,7 @@ public class Tunnel implements AutoCloseable {
      * Iris node receives the message.
      * @param message binary data contents of the message for forward to the remote endpoint
      */
-    public void send(@NotNull final byte[] message) throws IOException, InterruptedException {
+    public void send(@NotNull final byte[] message) throws IOException, ClosedException {
         Validators.validateTunnelPayload(message);
         try {
             bridge.send(message, 0);
@@ -44,7 +45,7 @@ public class Tunnel implements AutoCloseable {
      * @param message binary data contents of the message for forward to the remote endpoint
      * @param timeout milliseconds to wait for the message to be transferred to the local relay
      */
-    public void send(@NotNull final byte[] message, final long timeout) throws IOException, TimeoutException, InterruptedException {
+    public void send(@NotNull final byte[] message, final long timeout) throws IOException, TimeoutException, ClosedException {
         Validators.validateTunnelPayload(message);
         bridge.send(message, timeout);
     }
@@ -53,7 +54,7 @@ public class Tunnel implements AutoCloseable {
      * Retrieves a message from the tunnel, blocking until one is available.
      * @return binary data contents of the next message arrived from the remote endpoint
      */
-    public byte[] receive() throws IOException, InterruptedException {
+    public byte[] receive() throws IOException, ClosedException {
         try {
             return bridge.receive(0);
         } catch (TimeoutException e) {
@@ -67,7 +68,7 @@ public class Tunnel implements AutoCloseable {
      * @param timeout milliseconds to wait for a new message to arrive from the remote endpoint
      * @return binary data contents of the next message arrived from the remote endpoint
      */
-    public byte[] receive(final long timeout) throws IOException, TimeoutException, InterruptedException {
+    public byte[] receive(final long timeout) throws IOException, TimeoutException, ClosedException {
         return bridge.receive(timeout);
     }
 
