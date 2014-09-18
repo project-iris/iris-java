@@ -9,6 +9,7 @@ import com.karalabe.iris.ServiceHandler;
 import com.karalabe.iris.ServiceLimits;
 import com.karalabe.iris.common.BoundedThreadPool;
 import com.karalabe.iris.common.ContextualLogger;
+import com.karalabe.iris.exceptions.ClosedException;
 import com.karalabe.iris.exceptions.RemoteException;
 import com.karalabe.iris.exceptions.TimeoutException;
 import com.karalabe.iris.protocol.RelayProtocol;
@@ -16,14 +17,20 @@ import com.karalabe.iris.protocol.RelayProtocol;
 import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
 // Implements the request/reply communication pattern.
 public class RequestScheme {
     private static class PendingRequest {
+        Thread  owner;
         boolean timeout;
         byte[]  reply;
         String  error;
+
+        public PendingRequest() {
+            owner = Thread.currentThread();
+        }
     }
 
     private final RelayProtocol     protocol; // Network connection implementing the relay protocol
@@ -34,6 +41,7 @@ public class RequestScheme {
 
     private final AtomicLong                nextId  = new AtomicLong();             // Unique identifier for the next request
     private final Map<Long, PendingRequest> pending = new ConcurrentHashMap<>(128); // Result objects for pending requests
+    private final AtomicBoolean             closed  = new AtomicBoolean(false);     // Flag specifying if the connection was closed
 
     // Constructs a request/reply scheme implementation.
     public RequestScheme(final RelayProtocol protocol, final ServiceHandler handler, final ServiceLimits limits, final ContextualLogger logger) {
@@ -50,7 +58,11 @@ public class RequestScheme {
     }
 
     // Relays a request to the local Iris node, waits for a reply or timeout and returns it.
-    public byte[] request(final String cluster, final byte[] request, final long timeout) throws IOException, InterruptedException, RemoteException, TimeoutException {
+    public byte[] request(final String cluster, final byte[] request, final long timeout) throws IOException, ClosedException, RemoteException, TimeoutException {
+        // Ensure the connection hasn't been closed yet
+        if (closed.get()) {
+            throw new ClosedException();
+        }
         // Fetch a unique ID for the request
         final long id = nextId.incrementAndGet();
 
@@ -62,7 +74,11 @@ public class RequestScheme {
             // Send the request and wait for the reply
             synchronized (operation) {
                 protocol.sendRequest(id, cluster, request, timeout);
-                operation.wait();
+                try {
+                    operation.wait();
+                } catch (InterruptedException e) {
+                    throw new ClosedException(e);
+                }
             }
 
             if (operation.timeout) {
@@ -145,6 +161,16 @@ public class RequestScheme {
 
     // Terminates the request/reply primitive.
     public void close() throws InterruptedException {
+        // Make sure all new requests fail
+        closed.set(true);
+
+        // Interrupt all locally pending requests
+        for (final PendingRequest operation : pending.values()) {
+            synchronized (operation) {
+                operation.owner.interrupt();
+            }
+        }
+        // Interrupt all remote request processors
         if (workers != null) {
             workers.terminate(true);
         }

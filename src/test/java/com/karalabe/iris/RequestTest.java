@@ -7,6 +7,7 @@ package com.karalabe.iris;
 
 import com.carrotsearch.junitbenchmarks.AbstractBenchmark;
 import com.carrotsearch.junitbenchmarks.BenchmarkOptions;
+import com.karalabe.iris.exceptions.ClosedException;
 import com.karalabe.iris.exceptions.RemoteException;
 import com.karalabe.iris.exceptions.TimeoutException;
 import org.junit.Assert;
@@ -19,6 +20,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.LongAdder;
@@ -247,7 +249,7 @@ public class RequestTest extends AbstractBenchmark {
                         handler.connection.request(TestConfigs.CLUSTER_NAME, new byte[]{0x00}, 10);
                     } catch (TimeoutException ignore) {
                         // All ok
-                    } catch (IOException | RemoteException | InterruptedException e) {
+                    } catch (IOException | RemoteException | ClosedException e) {
                         e.printStackTrace();
                     }
                 });
@@ -261,6 +263,47 @@ public class RequestTest extends AbstractBenchmark {
             }
             Thread.sleep((REQUEST_COUNT + 1) * SLEEP);
             Assert.assertEquals(1, handler.done.get());
+        }
+    }
+
+    // Tests that a failing connection interrupts pending requests.
+    @BenchmarkOptions(benchmarkRounds = 5, warmupRounds = 10)
+    @Test public void interrupt() throws Exception {
+        // Test specific configurations
+        final int SLEEP = 250;
+
+        // Create the service handler and register it
+        final RequestTestSuccessHandler handler = new RequestTestSuccessHandler(SLEEP);
+        try (final Service ignored = new Service(TestConfigs.RELAY_PORT, TestConfigs.CLUSTER_NAME, handler)) {
+            // Connect with a client connection
+            final Connection conn = new Connection(TestConfigs.RELAY_PORT);
+
+            // Issue a request, but close before reply arrives
+            final Semaphore done = new Semaphore(0);
+            new Thread(() -> {
+                try {
+                    conn.request(TestConfigs.CLUSTER_NAME, new byte[]{0x00}, 1000);
+                } catch (IOException | RemoteException | TimeoutException ignore) {
+                    // Not what we expected, time out
+                } catch (ClosedException ignore) {
+                    done.release();
+                }
+            }).start();
+
+            // Wait a while to make sure request propagates and close the connection
+            Thread.sleep(SLEEP / 2);
+            conn.close();
+
+            // Verify the request interruption and failure to schedule new
+            Assert.assertTrue(done.tryAcquire(100, TimeUnit.MILLISECONDS));
+            try {
+                conn.request(TestConfigs.CLUSTER_NAME, new byte[]{0x00}, 1000);
+                Assert.fail("Request succeeded on closed connection");
+            } catch (ClosedException ignore) {
+                // Ok, connection was indeed closed
+            } catch (Exception e) {
+                Assert.fail("Request didn't report closure: " + e.getMessage());
+            }
         }
     }
 }

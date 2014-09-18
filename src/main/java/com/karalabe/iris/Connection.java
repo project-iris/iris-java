@@ -6,6 +6,7 @@
 package com.karalabe.iris;
 
 import com.karalabe.iris.common.ContextualLogger;
+import com.karalabe.iris.exceptions.ClosedException;
 import com.karalabe.iris.exceptions.RemoteException;
 import com.karalabe.iris.exceptions.TimeoutException;
 import com.karalabe.iris.protocol.RelayProtocol;
@@ -112,7 +113,7 @@ public class Connection implements AutoCloseable {
      * @param timeout milliseconds to wait for the remote response to arrive
      * @return binary data contents of the remote reply to the request
      */
-    public byte[] request(@NotNull final String cluster, @NotNull final byte[] request, final long timeout) throws IOException, InterruptedException, RemoteException, TimeoutException {
+    public byte[] request(@NotNull final String cluster, @NotNull final byte[] request, final long timeout) throws IOException, ClosedException, RemoteException, TimeoutException {
         Validators.validateClusterAddress(cluster);
         Validators.validateRequestPayload(request);
 
