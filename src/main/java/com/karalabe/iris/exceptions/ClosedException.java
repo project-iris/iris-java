@@ -6,8 +6,8 @@
 package com.karalabe.iris.exceptions;
 
 /**
- * Thrown whenever an operation is requested on a closed connection or tunnel,
- * or if an operation is pending when the connection/tunnel terminates.
+ * Thrown whenever an operation is requested on- or interrupted by a closed
+ * connection or tunnel.
  */
 public class ClosedException extends Exception {
     /** Constructs a ClosedException with null as its error detail message. */

@@ -65,7 +65,11 @@ public class RequestScheme {
         }
         // Fetch a unique ID for the request
         final long id = nextId.incrementAndGet();
-
+        if (logger.isDebugEnabled()) {
+            logger.loadContext();
+            logger.debug("Sending new request", "cluster", cluster, "local_request", String.valueOf(id), "data", new String(logger.truncate(request)), "timeout", String.valueOf(timeout));
+            logger.unloadContext();
+        }
         // Create a temporary object to store the reply
         final PendingRequest operation = new PendingRequest();
         this.pending.put(id, operation);
@@ -97,6 +101,11 @@ public class RequestScheme {
     // Schedules an application request for the service handler to process.
     public void handleRequest(final long id, final byte[] request, final long timeout) {
         final ContextualLogger logger = new ContextualLogger(this.logger, "remote_request", String.valueOf(id));
+        if (logger.isDebugEnabled()) {
+            logger.loadContext();
+            logger.debug("Scheduling arrived request", "data", new String(logger.truncate(request)));
+            logger.unloadContext();
+        }
 
         final long start = System.nanoTime();
         if (!workers.schedule(() -> {
@@ -117,12 +126,20 @@ public class RequestScheme {
 
             // Execute the request and flatten any error
             try {
+                logger.debug("Handling scheduled request");
                 response = handler.handleRequest(request);
             } catch (RemoteException e) {
                 error = e.getMessage();
             }
             // Try and send back the reply
             try {
+                if (logger.isDebugEnabled()) {
+                    if (response != null) {
+                        logger.debug("Replying to scheduled request", "data", new String(logger.truncate(response)));
+                    } else {
+                        logger.debug("Replying to scheduled request", "error", error);
+                    }
+                }
                 reply(id, response, error);
             } catch (IOException e) {
                 logger.error("Failed to send reply", "reason", e.getMessage());
@@ -143,6 +160,16 @@ public class RequestScheme {
 
     // Looks up a pending request and delivers the result.
     public void handleReply(final long id, final byte[] reply, final String error) {
+        if (logger.isDebugEnabled()) {
+            logger.loadContext();
+            if (reply != null) {
+                logger.debug("Request completed", "local_request", String.valueOf(id), "data", new String(logger.truncate(reply)));
+            } else {
+                logger.debug("Request completed", "local_request", String.valueOf(id), "error", error);
+            }
+            logger.unloadContext();
+        }
+
         // Fetch the pending result
         final PendingRequest operation = this.pending.get(id);
         if (operation == null) {

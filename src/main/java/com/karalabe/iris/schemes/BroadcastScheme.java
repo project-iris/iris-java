@@ -14,6 +14,7 @@ import com.karalabe.iris.protocol.RelayProtocol;
 
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 // Implements the broadcast communication pattern.
 public class BroadcastScheme {
@@ -23,6 +24,7 @@ public class BroadcastScheme {
     private final BoundedThreadPool workers;  // Thread pool for limiting the concurrent processing
     private final ContextualLogger  logger;   // Logger with connection id injected
 
+    private final AtomicInteger nextId = new AtomicInteger();      // Unique identifier for the next inbound broadcast (logging purposes)
     private final AtomicBoolean closed = new AtomicBoolean(false); // Flag specifying if the connection was closed
 
     // Constructs a broadcast scheme implementation.
@@ -45,13 +47,26 @@ public class BroadcastScheme {
         if (closed.get()) {
             throw new ClosedException("Connection already closed!");
         }
+        if (logger.isDebugEnabled()) {
+            logger.loadContext();
+            logger.debug("Sending new broadcast", "cluster", cluster, "data", new String(logger.truncate(message)));
+            logger.unloadContext();
+        }
         protocol.sendBroadcast(cluster, message);
     }
 
     // Schedules an application broadcast message for the service handler to process.
     public void handleBroadcast(final byte[] message) {
+        final ContextualLogger logger = new ContextualLogger(this.logger, "broadcast", String.valueOf(nextId.incrementAndGet()));
+        if (logger.isDebugEnabled()) {
+            logger.loadContext();
+            logger.debug("Scheduling arrived broadcast", "data", new String(logger.truncate(message)));
+            logger.unloadContext();
+        }
+
         if (!workers.schedule(() -> {
             logger.loadContext();
+            logger.debug("Handling scheduled broadcast");
             handler.handleBroadcast(message);
         }, message.length)) {
             logger.loadContext();

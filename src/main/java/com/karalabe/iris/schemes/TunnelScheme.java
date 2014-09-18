@@ -232,6 +232,11 @@ public class TunnelScheme {
             if (closed.get()) {
                 throw new ClosedException("Tunnel already closed!");
             }
+            if (logger.isDebugEnabled()) {
+                logger.loadContext();
+                logger.debug("Sending message", "data", new String(logger.truncate(message)), "timeout", String.valueOf(timeout));
+                logger.unloadContext();
+            }
             // Calculate the deadline for the operation to finish
             final long deadline = System.nanoTime() + timeout * 10000000;
 
@@ -295,6 +300,11 @@ public class TunnelScheme {
                 }
                 // Fetch the pending message and send a remote allowance
                 final byte[] message = itoaBuffer.remove();
+                if (logger.isDebugEnabled()) {
+                    logger.loadContext();
+                    logger.debug("Fetching queued message", "data", new String(logger.truncate(message)));
+                    logger.unloadContext();
+                }
                 throttler.submit(() -> {
                     try {
                         protocol.sendTunnelAllowance(id, message.length);
@@ -342,8 +352,14 @@ public class TunnelScheme {
 
             if (chunkBuffer.size() == chunkCapacity) {
                 // Transfer the completed message into the inbound queue
+                final byte[] message = chunkBuffer.toByteArray();
+                if (logger.isDebugEnabled()) {
+                    logger.loadContext();
+                    logger.debug("Queuing arrived message", "data", new String(logger.truncate(message)));
+                    logger.unloadContext();
+                }
                 synchronized (itoaBuffer) {
-                    itoaBuffer.add(chunkBuffer.toByteArray());
+                    itoaBuffer.add(message);
                     chunkBuffer = null;
                     chunkCapacity = 0;
 

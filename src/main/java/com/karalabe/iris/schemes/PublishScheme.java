@@ -26,6 +26,8 @@ public class PublishScheme {
         public TopicLimits       limits;  // Subscription handler resource consumption allowance
         public BoundedThreadPool workers; // Thread pool for limiting the concurrent processing
         public ContextualLogger  logger;  // Logger with connection and topic id injected
+
+        public final AtomicInteger nextId = new AtomicInteger(); // Unique identifier for the next inbound event (logging purposes)
     }
 
     private final RelayProtocol    protocol; // Network connection implementing the relay protocol
@@ -108,6 +110,11 @@ public class PublishScheme {
         if (closed.get()) {
             throw new ClosedException("Connection already closed!");
         }
+        if (logger.isDebugEnabled()) {
+            logger.loadContext();
+            logger.debug("Publishing new event", "topic", topic, "data", new String(logger.truncate(event)));
+            logger.unloadContext();
+        }
         protocol.sendPublish(topic, event);
     }
 
@@ -115,15 +122,23 @@ public class PublishScheme {
     public void handlePublish(final String topic, final byte[] event) throws IOException {
         final Subscription sub = active.get(topic);
         if (sub != null) {
+            final ContextualLogger logger = new ContextualLogger(sub.logger, "event", String.valueOf(sub.nextId.incrementAndGet()));
+            if (logger.isDebugEnabled()) {
+                logger.loadContext();
+                logger.debug("Scheduling arrived event", "data", new String(logger.truncate(event)));
+                logger.unloadContext();
+            }
+
             if (!sub.workers.schedule(() -> {
-                sub.logger.loadContext();
+                logger.loadContext();
+                logger.debug("Handling scheduled event");
                 sub.handler.handleEvent(event);
             }, event.length)) {
-                sub.logger.loadContext();
+                logger.loadContext();
                 sub.logger.error("Event exceeded memory allowance",
                                  "limit", String.valueOf(sub.limits.eventMemory),
                                  "size", String.valueOf(event.length));
-                sub.logger.unloadContext();
+                logger.unloadContext();
             }
         } else {
             logger.loadContext();
