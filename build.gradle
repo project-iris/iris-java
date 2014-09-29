@@ -13,7 +13,7 @@ sourceCompatibility = 1.8
 // Basic metadata for the packages
 group = "com.karalabe.iris"
 archivesBaseName = "iris"
-version = "1.0.0-preview-5"
+version = "1.0.0-preview-6"
 
 // Define the dependencies and their repositories
 repositories {
@@ -37,5 +37,6 @@ test {
 
 // Configure the path to the library overview documentation
 javadoc {
+    title = archivesBaseName + " " + version + " API"
     options.overview = "src/main/overview.html"
 }

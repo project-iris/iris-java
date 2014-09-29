@@ -107,7 +107,7 @@ public class RelayProtocol {
     }
 
     // Closure for defining a runnable that permits IOExceptions.
-    @FunctionalInterface public interface Closure {
+    @FunctionalInterface interface Closure {
         void run() throws IOException;
     }
 

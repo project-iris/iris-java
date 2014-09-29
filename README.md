@@ -19,11 +19,11 @@ There is a growing community on Twitter [@iriscmf](https://twitter.com/iriscmf),
   Installation
 ----------------
 
-To get the package, add the following Maven dependency ([details](http://search.maven.org/#artifactdetails%7Ccom.karalabe.iris%7Ciris%7C1.0.0-preview-5%7Cjar) for various build systems):
+To get the package, add the following Maven dependency ([details](http://search.maven.org/#artifactdetails%7Ccom.karalabe.iris%7Ciris%7C1.0.0-preview-6%7Cjar) for various build systems):
 
  - Group ID: com.karalabe.iris
  - Artifact ID: iris
- - Version: 1.0.0-preview-5
+ - Version: 1.0.0-preview-6
 
 To import this package, add the following line to your code:
 
@@ -51,7 +51,7 @@ Since it generates random credentials, a developer node will not be able to conn
 
 After successfully booting, the relay opens a _local_ TCP endpoint (port `55555` by default, configurable using `-port`) through which arbitrarily many entities may attach. Each connecting entity may also decide whether it becomes a simple _client_ only consuming the services provided by other participants, or a full fledged _service_, also making functionality available to others for consumption.
 
-Connecting as a client can be done trivially by invoking [`new Connection`](http://iris.karalabe.com/docs/iris-java.v1/com/karalabe/iris/Connection.html#Connection-int-) with the port number of the local relay's client endpoint. After the attachment is completed, a [`Connection`](http://iris.karalabe.com/docs/iris-java.v1/com/karalabe/iris/Connection.html) instance is returned through which messaging can begin. A client cannot accept inbound requests, broadcasts and tunnels, only initiate them.
+Connecting as a client can be done trivially by invoking [`new Connection`](http://iris.karalabe.com/docs/iris-jvm.v1/com/karalabe/iris/Connection.html#Connection-int-) with the port number of the local relay's client endpoint. After the attachment is completed, a [`Connection`](http://iris.karalabe.com/docs/iris-jvm.v1/com/karalabe/iris/Connection.html) instance is returned through which messaging can begin. A client cannot accept inbound requests, broadcasts and tunnels, only initiate them.
 
 ```java
 // Connect to the local relay (error handling omitted)
@@ -61,7 +61,7 @@ final Connection conn = new Connection(55555);
 conn.close();
 ```
 
-To provide functionality for consumption, an entity needs to register as a service. This is slightly more involved, as beside initiating a registration request, it also needs to specify a callback handler to process inbound events. First, the callback handler needs to implement the [`ServiceHandler`](http://iris.karalabe.com/docs/iris-java.v1/com/karalabe/iris/ServiceHandler.html) interface. After creating the handler, registration can commence by invoking [`new Service`](http://iris.karalabe.com/docs/iris-java.v1/com/karalabe/iris/Service.html#Service-int-java.lang.String-com.karalabe.iris.ServiceHandler-) with the port number of the local relay's client endpoint; sub-service cluster this entity will join as a member; handler itself to process inbound messages and an optional resource cap.
+To provide functionality for consumption, an entity needs to register as a service. This is slightly more involved, as beside initiating a registration request, it also needs to specify a callback handler to process inbound events. First, the callback handler needs to implement the [`ServiceHandler`](http://iris.karalabe.com/docs/iris-jvm.v1/com/karalabe/iris/ServiceHandler.html) interface. After creating the handler, registration can commence by invoking [`new Service`](http://iris.karalabe.com/docs/iris-jvm.v1/com/karalabe/iris/Service.html#Service-int-java.lang.String-com.karalabe.iris.ServiceHandler-) with the port number of the local relay's client endpoint; sub-service cluster this entity will join as a member; handler itself to process inbound messages and an optional resource cap.
 
 ```java
 // Implement all the methods defined by ServiceHandler (optional, defaults provided)
@@ -82,7 +82,7 @@ public static void main(String[] args) throws Exception {
 }
 ```
 
-Upon successful registration, Iris invokes the handler's [`init`](http://iris.karalabe.com/docs/iris-java.v1/com/karalabe/iris/ServiceHandler.html#init-com.karalabe.iris.Connection-) method with the live [`Connection`](http://iris.karalabe.com/docs/iris-java.v1/com/karalabe/iris/Connection.html) object - the service's client connection - through which the service itself can initiate outbound requests. The [`init`](http://iris.karalabe.com/docs/iris-java.v1/com/karalabe/iris/ServiceHandler.html#init-com.karalabe.iris.Connection-) is called only once and is synchronized before any other handler method is invoked.
+Upon successful registration, Iris invokes the handler's [`init`](http://iris.karalabe.com/docs/iris-jvm.v1/com/karalabe/iris/ServiceHandler.html#init-com.karalabe.iris.Connection-) method with the live [`Connection`](http://iris.karalabe.com/docs/iris-jvm.v1/com/karalabe/iris/Connection.html) object - the service's client connection - through which the service itself can initiate outbound requests. The [`init`](http://iris.karalabe.com/docs/iris-jvm.v1/com/karalabe/iris/ServiceHandler.html#init-com.karalabe.iris.Connection-) is called only once and is synchronized before any other handler method is invoked.
 
 ### Messaging through Iris
 
@@ -106,9 +106,9 @@ try {
 
 The binding uses the idiomatic Java error handling mechanisms of throwing checked exceptions whenever a failure occurs. However, there are a few common cases that need to be individually checkable, hence a few special exception types have been introduced.
 
-Many operations - such as requests and tunnels - can time out. To allow checking for this particular failure, Iris throws a [`TimeoutException`](http://iris.karalabe.com/docs/iris-java.v1/com/karalabe/iris/exceptions/TimeoutException.html) in such scenarios. Similarly, connections, services and tunnels may fail, in the case of which all pending operations terminate with a [`ClosedException`](http://iris.karalabe.com/docs/iris-java.v1/com/karalabe/iris/exceptions/ClosedException.html).
+Many operations - such as requests and tunnels - can time out. To allow checking for this particular failure, Iris throws a [`TimeoutException`](http://iris.karalabe.com/docs/iris-jvm.v1/com/karalabe/iris/exceptions/TimeoutException.html) in such scenarios. Similarly, connections, services and tunnels may fail, in the case of which all pending operations terminate with a [`ClosedException`](http://iris.karalabe.com/docs/iris-jvm.v1/com/karalabe/iris/exceptions/ClosedException.html).
 
-Additionally, the requests/reply pattern supports sending back an error instead of a reply to the caller. To enable the originating node to check whether a request failed locally or remotely, all remote errors are wrapped in a [`RemoteException`](http://iris.karalabe.com/docs/iris-java.v1/com/karalabe/iris/exceptions/RemoteException.html).
+Additionally, the requests/reply pattern supports sending back an error instead of a reply to the caller. To enable the originating node to check whether a request failed locally or remotely, all remote errors are wrapped in a [`RemoteException`](http://iris.karalabe.com/docs/iris-jvm.v1/com/karalabe/iris/exceptions/RemoteException.html).
 
 ```java
 try {
@@ -124,13 +124,13 @@ try {
 }
 ```
 
-Lastly, if during the initialization of a registered service - while the [`init`](http://iris.karalabe.com/docs/iris-java.v1/com/karalabe/iris/ServiceHandler.html#init-com.karalabe.iris.Connection-) callback is running - the user wishes to abort the registration, he should throw an [`InitializationException`](http://iris.karalabe.com/docs/iris-java.v1/com/karalabe/iris/exceptions/InitializationException.html)
+Lastly, if during the initialization of a registered service - while the [`init`](http://iris.karalabe.com/docs/iris-jvm.v1/com/karalabe/iris/ServiceHandler.html#init-com.karalabe.iris.Connection-) callback is running - the user wishes to abort the registration, he should throw an [`InitializationException`](http://iris.karalabe.com/docs/iris-jvm.v1/com/karalabe/iris/exceptions/InitializationException.html)
 
 ### Resource capping
 
 To prevent the network from overwhelming an attached process, the binding places thread and memory limits on the broadcasts/requests inbound to a registered service as well as on the events received by a topic subscription. The thread limit defines the concurrent processing allowance, whereas the memory limit the maximal length of the pending queue.
 
-The default values - listed below - can be overridden during service registration and topic subscription via [`ServiceLimits`](http://iris.karalabe.com/docs/iris-java.v1/com/karalabe/iris/ServiceLimits.html) and [`TopicLimits`](http://iris.karalabe.com/docs/iris-java.v1/com/karalabe/iris/TopicLimits.html). Any unset fields will default to the preset ones.
+The default values - listed below - can be overridden during service registration and topic subscription via [`ServiceLimits`](http://iris.karalabe.com/docs/iris-jvm.v1/com/karalabe/iris/ServiceLimits.html) and [`TopicLimits`](http://iris.karalabe.com/docs/iris-jvm.v1/com/karalabe/iris/TopicLimits.html). Any unset fields will default to the preset ones.
 
 ```java
 // Default limits of the threading and memory usage of a registered service.
@@ -170,7 +170,7 @@ The suggested configuration is to collect _INFO_ level logs and print them to _s
 </configuration>
 ```
 
-Note, that Iris attaches quite a lot of contextual attributes (Mapped Diagnostic Context) to each log entry, enabling detailed tracking of events. These are printed - as can be seen above - with the help of the `%mdc` field in the log output pattern. Additionally, these MDCs are automatically injected into the logger context whenever a callback method of the [`ServiceHandler`](http://iris.karalabe.com/docs/iris-java.v1/com/karalabe/iris/ServiceHandler.html) or [`TopicHandler`](http://iris.karalabe.com/docs/iris-java.v1/com/karalabe/iris/TopicHandler.html) is invoked.
+Note, that Iris attaches quite a lot of contextual attributes (Mapped Diagnostic Context) to each log entry, enabling detailed tracking of events. These are printed - as can be seen above - with the help of the `%mdc` field in the log output pattern. Additionally, these MDCs are automatically injected into the logger context whenever a callback method of the [`ServiceHandler`](http://iris.karalabe.com/docs/iris-jvm.v1/com/karalabe/iris/ServiceHandler.html) or [`TopicHandler`](http://iris.karalabe.com/docs/iris-jvm.v1/com/karalabe/iris/TopicHandler.html) is invoked.
 
 ```java
 @Override public byte[] handleRequest(byte[] request) throws RemoteException {
@@ -263,35 +263,35 @@ Benchmarking can be run similarly through [Gradle](http://www.gradle.org/), but 
 $ ./gradlew -b benchmark.gradle
 [...]
 Benchmark                                            (threads)  Mode  Samples      Score  Score error  Units
-c.k.i.BroadcastLatencyBenchmark.timeLatency                N/A  avgt       10  43520.931      308.018  ns/op
-c.k.i.BroadcastThroughputBenchmark.timeThroughput            1  avgt       10   6319.438       80.407  ns/op
-c.k.i.BroadcastThroughputBenchmark.timeThroughput            2  avgt       10   6100.754       83.353  ns/op
-c.k.i.BroadcastThroughputBenchmark.timeThroughput            4  avgt       10   5890.325       60.563  ns/op
-c.k.i.BroadcastThroughputBenchmark.timeThroughput            8  avgt       10   5808.757       77.102  ns/op
-c.k.i.BroadcastThroughputBenchmark.timeThroughput           16  avgt       10   5833.382       72.365  ns/op
-c.k.i.BroadcastThroughputBenchmark.timeThroughput           32  avgt       10   5834.460      115.848  ns/op
-c.k.i.BroadcastThroughputBenchmark.timeThroughput           64  avgt       10   5811.011       72.177  ns/op
-c.k.i.BroadcastThroughputBenchmark.timeThroughput          128  avgt       10   5868.079       50.772  ns/op
-c.k.i.PublishLatencyBenchmark.timeLatency                  N/A  avgt       10  43745.582      368.617  ns/op
-c.k.i.PublishThroughputBenchmark.timeThroughput              1  avgt       10   6394.818       74.003  ns/op
-c.k.i.PublishThroughputBenchmark.timeThroughput              2  avgt       10   6151.742       53.705  ns/op
-c.k.i.PublishThroughputBenchmark.timeThroughput              4  avgt       10   5948.397       58.813  ns/op
-c.k.i.PublishThroughputBenchmark.timeThroughput              8  avgt       10   5884.619       68.342  ns/op
-c.k.i.PublishThroughputBenchmark.timeThroughput             16  avgt       10   5885.899       65.779  ns/op
-c.k.i.PublishThroughputBenchmark.timeThroughput             32  avgt       10   5884.120       72.272  ns/op
-c.k.i.PublishThroughputBenchmark.timeThroughput             64  avgt       10   5899.128       60.878  ns/op
-c.k.i.PublishThroughputBenchmark.timeThroughput            128  avgt       10   5953.129       55.586  ns/op
-c.k.i.RequestLatencyBenchmark.timeLatency                  N/A  avgt       10  87767.815      720.325  ns/op
-c.k.i.RequestThroughputBenchmark.timeThroughput              1  avgt       10  89687.872      631.716  ns/op
-c.k.i.RequestThroughputBenchmark.timeThroughput              2  avgt       10  56079.857      300.517  ns/op
-c.k.i.RequestThroughputBenchmark.timeThroughput              4  avgt       10  38995.321      236.724  ns/op
-c.k.i.RequestThroughputBenchmark.timeThroughput              8  avgt       10  29960.518      256.718  ns/op
-c.k.i.RequestThroughputBenchmark.timeThroughput             16  avgt       10  23954.222      273.733  ns/op
-c.k.i.RequestThroughputBenchmark.timeThroughput             32  avgt       10  20378.569      244.354  ns/op
-c.k.i.RequestThroughputBenchmark.timeThroughput             64  avgt       10  19706.103      321.938  ns/op
-c.k.i.RequestThroughputBenchmark.timeThroughput            128  avgt       10  19781.863      228.609  ns/op
-c.k.i.TunnelLatencyBenchmark.timeLatency                   N/A  avgt       10  92653.436     1269.613  ns/op
-c.k.i.TunnelThroughputBenchmark.timeThroughput             N/A  avgt       10  15238.044      158.442  ns/op
+c.k.i.BroadcastLatencyBenchmark.timeLatency                N/A  avgt       10  44323.122      825.059  ns/op
+c.k.i.BroadcastThroughputBenchmark.timeThroughput            1  avgt       10   5710.532       49.099  ns/op
+c.k.i.BroadcastThroughputBenchmark.timeThroughput            2  avgt       10   5516.166       61.866  ns/op
+c.k.i.BroadcastThroughputBenchmark.timeThroughput            4  avgt       10   5279.740       47.308  ns/op
+c.k.i.BroadcastThroughputBenchmark.timeThroughput            8  avgt       10   5252.124       40.061  ns/op
+c.k.i.BroadcastThroughputBenchmark.timeThroughput           16  avgt       10   5246.738       43.543  ns/op
+c.k.i.BroadcastThroughputBenchmark.timeThroughput           32  avgt       10   5255.368       41.310  ns/op
+c.k.i.BroadcastThroughputBenchmark.timeThroughput           64  avgt       10   5255.913       66.850  ns/op
+c.k.i.BroadcastThroughputBenchmark.timeThroughput          128  avgt       10   5256.317       45.804  ns/op
+c.k.i.PublishLatencyBenchmark.timeLatency                  N/A  avgt       10  44902.253      691.909  ns/op
+c.k.i.PublishThroughputBenchmark.timeThroughput              1  avgt       10   5772.169       77.503  ns/op
+c.k.i.PublishThroughputBenchmark.timeThroughput              2  avgt       10   5554.562       44.429  ns/op
+c.k.i.PublishThroughputBenchmark.timeThroughput              4  avgt       10   5356.768       55.335  ns/op
+c.k.i.PublishThroughputBenchmark.timeThroughput              8  avgt       10   5320.963       40.598  ns/op
+c.k.i.PublishThroughputBenchmark.timeThroughput             16  avgt       10   5311.546       59.996  ns/op
+c.k.i.PublishThroughputBenchmark.timeThroughput             32  avgt       10   5326.008       54.033  ns/op
+c.k.i.PublishThroughputBenchmark.timeThroughput             64  avgt       10   5343.181       45.880  ns/op
+c.k.i.PublishThroughputBenchmark.timeThroughput            128  avgt       10   5357.519       45.299  ns/op
+c.k.i.RequestLatencyBenchmark.timeLatency                  N/A  avgt       10  87269.227      953.284  ns/op
+c.k.i.RequestThroughputBenchmark.timeThroughput              1  avgt       10  89819.877      764.715  ns/op
+c.k.i.RequestThroughputBenchmark.timeThroughput              2  avgt       10  55718.369      319.352  ns/op
+c.k.i.RequestThroughputBenchmark.timeThroughput              4  avgt       10  38359.248      341.198  ns/op
+c.k.i.RequestThroughputBenchmark.timeThroughput              8  avgt       10  29429.851      375.620  ns/op
+c.k.i.RequestThroughputBenchmark.timeThroughput             16  avgt       10  23240.808      428.840  ns/op
+c.k.i.RequestThroughputBenchmark.timeThroughput             32  avgt       10  19902.494      322.047  ns/op
+c.k.i.RequestThroughputBenchmark.timeThroughput             64  avgt       10  19181.454      296.732  ns/op
+c.k.i.RequestThroughputBenchmark.timeThroughput            128  avgt       10  19313.188      274.534  ns/op
+c.k.i.TunnelLatencyBenchmark.timeLatency                   N/A  avgt       10  93759.745     1179.995  ns/op
+c.k.i.TunnelThroughputBenchmark.timeThroughput             N/A  avgt       10  14408.706      401.866  ns/op
 ```
 
   Contributions
