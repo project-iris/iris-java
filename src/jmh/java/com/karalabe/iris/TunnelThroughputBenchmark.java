@@ -11,6 +11,7 @@ import com.karalabe.iris.exceptions.TimeoutException;
 import org.openjdk.jmh.annotations.*;
 
 import java.io.IOException;
+import java.lang.InterruptedException;
 import java.util.concurrent.Semaphore;
 
 // Benchmarks the throughput of the tunnel data transfer.
@@ -35,7 +36,7 @@ public class TunnelThroughputBenchmark {
             } finally {
                 try {
                     tunnel.close();
-                } catch (IOException | InterruptedException e) {
+                } catch (IOException | ClosedException e) {
                     e.printStackTrace();
                 }
             }
@@ -49,7 +50,7 @@ public class TunnelThroughputBenchmark {
     private Tunnel           tunnel;
 
     // Registers a new service to the relay and opens a tunnel into it
-    @Setup(Level.Iteration) public void init() throws InterruptedException, IOException, InitializationException, TimeoutException {
+    @Setup(Level.Iteration) public void init() throws ClosedException, IOException, InitializationException, TimeoutException {
         handler = new BenchmarkHandler();
         handler.pending = new Semaphore(0);
 
@@ -58,7 +59,7 @@ public class TunnelThroughputBenchmark {
     }
 
     // Closes the tunnel and unregisters the service.
-    @TearDown(Level.Iteration) public void close() throws IOException, InterruptedException {
+    @TearDown(Level.Iteration) public void close() throws IOException, ClosedException, InterruptedException {
         tunnel.close();
         service.close();
     }

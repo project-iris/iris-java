@@ -28,7 +28,7 @@ public class Service implements AutoCloseable {
      * @param cluster name of the micro-service cluster to join
      * @param handler callback handler for inbound service events
      */
-    public Service(final int port, @NotNull final String cluster, @NotNull final ServiceHandler handler) throws IOException, InterruptedException, InitializationException {
+    public Service(final int port, @NotNull final String cluster, @NotNull final ServiceHandler handler) throws IOException, InitializationException {
         this(port, cluster, handler, new ServiceLimits());
     }
 
@@ -41,7 +41,7 @@ public class Service implements AutoCloseable {
      * @param limits  custom resource consumption limits for inbound events
      * @param handler callback handler for inbound service events
      */
-    public Service(final int port, @NotNull final String cluster, @NotNull final ServiceHandler handler, @NotNull final ServiceLimits limits) throws IOException, InterruptedException, InitializationException {
+    public Service(final int port, @NotNull final String cluster, @NotNull final ServiceHandler handler, @NotNull final ServiceLimits limits) throws IOException, InitializationException {
         final ContextualLogger logger = new ContextualLogger(LoggerFactory.getLogger(Service.class.getPackage().getName()),
                                                              "service", String.valueOf(nextServId.incrementAndGet()));
 
@@ -59,10 +59,14 @@ public class Service implements AutoCloseable {
                 logger.info("Service registration completed");
             } catch (InitializationException e) {
                 logger.warn("User failed to initialize service", "reason", e.getMessage());
-                connection.close();
+                try {
+                    connection.close();
+                } catch (InterruptedException ex) {
+                    ex.printStackTrace();
+                }
                 throw e;
             }
-        } catch (IOException | InterruptedException e) {
+        } catch (IOException e) {
             logger.warn("Failed to register new service", "reason", e.getMessage());
             throw e;
         } finally {

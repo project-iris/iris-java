@@ -35,7 +35,7 @@ public class TunnelGeneralTest extends AbstractBenchmark {
             } finally {
                 try {
                     tunnel.close();
-                } catch (IOException | InterruptedException e) {
+                } catch (IOException | ClosedException e) {
                     e.printStackTrace();
                 }
             }

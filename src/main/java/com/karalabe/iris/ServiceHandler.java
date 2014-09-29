@@ -5,6 +5,7 @@
 // For details please see http://iris.karalabe.com/downloads#License
 package com.karalabe.iris;
 
+import com.karalabe.iris.exceptions.ClosedException;
 import com.karalabe.iris.exceptions.InitializationException;
 import com.karalabe.iris.exceptions.RemoteException;
 import org.jetbrains.annotations.NotNull;
@@ -57,7 +58,7 @@ public interface ServiceHandler {
     default void handleTunnel(@NotNull final Tunnel tunnel) {
         try {
             tunnel.close();
-        } catch (IOException | InterruptedException e) {
+        } catch (IOException | ClosedException e) {
             e.printStackTrace();
         }
     }

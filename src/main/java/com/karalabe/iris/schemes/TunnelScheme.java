@@ -28,8 +28,13 @@ import java.util.function.Function;
 // Implements the tunnel communication pattern.
 public class TunnelScheme {
     private static class PendingBuild {
+        Thread  owner;
         boolean timeout;
         long    chunking;
+
+        public PendingBuild() {
+            owner = Thread.currentThread();
+        }
     }
 
     private static final int DEFAULT_TUNNEL_BUFFER = 64 * 1024 * 1024; // Size of a tunnel's input buffer.
@@ -42,6 +47,7 @@ public class TunnelScheme {
     private final AtomicInteger           nextId  = new AtomicInteger();          // Unique identifier for the next tunnel
     private final Map<Long, PendingBuild> pending = new ConcurrentHashMap<>(128); // Result objects for pending tunnel
     private final Map<Long, TunnelBridge> active  = new ConcurrentHashMap<>(128); // Currently active tunnels
+    private final AtomicBoolean           closed  = new AtomicBoolean(false);     // Flag specifying if the connection was closed
 
     private final ExecutorService throttler = Executors.newSingleThreadExecutor(); // Executor for sending back async tunnel allowances
 
@@ -56,7 +62,11 @@ public class TunnelScheme {
 
     // Relays a tunnel construction request to the local Iris node, waits for a
     // reply or timeout and potentially returns a new tunnel.
-    public Tunnel tunnel(final String cluster, final long timeout) throws IOException, InterruptedException, TimeoutException {
+    public Tunnel tunnel(final String cluster, final long timeout) throws IOException, ClosedException, TimeoutException {
+        // Ensure the connection hasn't been closed yet
+        if (closed.get()) {
+            throw new ClosedException("Connection already closed!");
+        }
         // Fetch a unique ID for the tunnel
         final long id = nextId.incrementAndGet();
 
@@ -94,7 +104,12 @@ public class TunnelScheme {
 
             // Make sure the half initialized tunnel is discarded
             active.remove(id);
-            throw e;
+
+            try {
+                throw e;
+            } catch (InterruptedException ex) {
+                throw new ClosedException(ex);
+            }
         } finally {
             // Make sure the pending operations are cleaned up
             bridge.logger.unloadContext();
@@ -174,6 +189,20 @@ public class TunnelScheme {
 
     // Terminates the tunnel primitive.
     public void close() {
+        // Make sure all new requests fail
+        closed.set(true);
+
+        // Interrupt all locally pending tunnel constructions
+        for (final PendingBuild operation : pending.values()) {
+            synchronized (operation) {
+                operation.owner.interrupt();
+            }
+        }
+        // Interrupt all active tunnels
+        for (final TunnelBridge bridge : active.values()) {
+            bridge.handleClose("Connection closed");
+        }
+        // Close the acknowledgement sender
         throttler.shutdownNow();
     }
 
@@ -208,7 +237,7 @@ public class TunnelScheme {
         }
 
         // Requests the closure of the tunnel.
-        public void close() throws IOException, InterruptedException {
+        public void close() throws IOException, ClosedException {
             synchronized (exitLock) {
                 // Send the tear-down request if still alive and wait until a reply arrives
                 if (exitStatus == null) {
@@ -218,6 +247,8 @@ public class TunnelScheme {
 
                         protocol.sendTunnelClose(id);
                         exitLock.wait();
+                    } catch (InterruptedException e) {
+                        throw new ClosedException(e);
                     } finally {
                         logger.unloadContext();
                     }

@@ -77,7 +77,7 @@ public class Tunnel implements AutoCloseable {
      *
      * The method blocks until the local relay node acknowledges the tear-down.
      */
-    @Override public void close() throws IOException, InterruptedException {
+    @Override public void close() throws IOException, ClosedException {
         bridge.close();
     }
 }

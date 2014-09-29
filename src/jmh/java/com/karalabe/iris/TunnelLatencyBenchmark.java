@@ -35,7 +35,7 @@ public class TunnelLatencyBenchmark {
             } finally {
                 try {
                     tunnel.close();
-                } catch (IOException | InterruptedException e) {
+                } catch (IOException | ClosedException e) {
                     e.printStackTrace();
                 }
             }
@@ -47,7 +47,7 @@ public class TunnelLatencyBenchmark {
     private Tunnel           tunnel  = null;
 
     // Registers a new service to the relay and opens a tunnel into it
-    @Setup(Level.Iteration) public void init() throws InterruptedException, IOException, InitializationException, TimeoutException {
+    @Setup(Level.Iteration) public void init() throws ClosedException, IOException, InitializationException, TimeoutException {
         handler = new BenchmarkHandler();
         handler.pending = new Semaphore(0);
 
@@ -56,7 +56,7 @@ public class TunnelLatencyBenchmark {
     }
 
     // Closes the tunnel and unregisters the service.
-    @TearDown(Level.Iteration) public void close() throws IOException, InterruptedException {
+    @TearDown(Level.Iteration) public void close() throws IOException, ClosedException, InterruptedException {
         tunnel.close();
         service.close();
     }

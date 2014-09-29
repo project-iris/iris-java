@@ -188,7 +188,7 @@ public class Connection implements AutoCloseable {
      * @param timeout milliseconds to wait for the tunnel construction to complete
      * @return active tunnel into a remote Iris micro-service
      */
-    public Tunnel tunnel(@NotNull final String cluster, final long timeout) throws IOException, TimeoutException, InterruptedException {
+    public Tunnel tunnel(@NotNull final String cluster, final long timeout) throws IOException, TimeoutException, ClosedException {
         Validators.validateClusterAddress(cluster);
         return tunneler.tunnel(cluster, timeout);
     }
