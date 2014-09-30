@@ -39,4 +39,5 @@ test {
 javadoc {
     title = archivesBaseName + " " + version + " API"
     options.overview = "src/main/overview.html"
+    options.header = "<script src=\"http://iris.karalabe.com/js/analytics.js\"></script>"
 }
