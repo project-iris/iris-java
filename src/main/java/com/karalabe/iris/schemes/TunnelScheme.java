@@ -306,13 +306,13 @@ public class TunnelScheme {
         // Retrieves a message from the tunnel, blocking until one is available or the
         // operation times out.
         public byte[] receive(final long timeout) throws ClosedException, TimeoutException {
-            // Ensure the connection hasn't been closed yet
-            if (closed.get()) {
-                throw new ClosedException("Tunnel already closed!");
-            }
             synchronized (itoaBuffer) {
                 // Wait for a message to arrive if none is available
                 if (itoaBuffer.isEmpty()) {
+                    // Ensure the connection hasn't been closed yet
+                    if (closed.get()) {
+                        throw new ClosedException("Tunnel already closed!");
+                    }
                     try {
                         itoaThread = Thread.currentThread();
                         if (timeout > 0) {
