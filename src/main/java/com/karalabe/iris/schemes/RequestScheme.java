@@ -80,6 +80,9 @@ public class RequestScheme {
                 protocol.sendRequest(id, cluster, request, timeout);
                 try {
                     operation.wait();
+
+                    // Thread notified, but clear any possible racy interrupts
+                    Thread.interrupted();
                 } catch (InterruptedException e) {
                     throw new ClosedException(e);
                 }

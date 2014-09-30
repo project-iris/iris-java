@@ -291,6 +291,8 @@ public class TunnelScheme {
                                 }
                                 atoiLock.wait(sleep);
                             }
+                            // Thread notified, but clear any possible racy interrupts
+                            Thread.interrupted();
                         } catch (InterruptedException e) {
                             throw new ClosedException(e);
                         } finally {
@@ -320,6 +322,8 @@ public class TunnelScheme {
                         } else {
                             itoaBuffer.wait();
                         }
+                        // Thread notified, but clear any possible racy interrupts
+                        Thread.interrupted();
                     } catch (InterruptedException e) {
                         throw new ClosedException(e);
                     } finally {
